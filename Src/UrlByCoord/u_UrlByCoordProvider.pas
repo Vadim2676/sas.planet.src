@@ -189,9 +189,9 @@ implementation
 
 uses
   SysUtils,
+  ALString,
   c_CoordConverter,
   i_BinaryData,
-  u_AnsiStr,
   u_BinaryData,
   u_DownloadRequest,
   u_GeoToStrFunc;
@@ -266,7 +266,7 @@ begin
     'http://www.bing.com/maps/default.aspx?v=2&cp=' +
     R2AnsiStrPoint(ALonLat.y) + '~' +
     R2AnsiStrPoint(ALonLat.x) +
-    '&style=h&lvl=' + IntToStrA(AProjection.Zoom);
+    '&style=h&lvl=' + ALIntToStr(AProjection.Zoom);
 end;
 
 { TUrlByCoordProviderKosmosnimki }
@@ -287,7 +287,7 @@ begin
     'http://kosmosnimki.ru/?x=' +
     R2AnsiStrPoint(ALonLat.x) +
     '&y=' + R2AnsiStrPoint(ALonLat.y) +
-    '&z=' + IntToStrA(AProjection.Zoom) +
+    '&z=' + ALIntToStr(AProjection.Zoom) +
     '&fullscreen=False&mode=satellite';
 end;
 
@@ -309,7 +309,7 @@ begin
     'http://maps.yandex.ru/?ll=' +
     R2AnsiStrPoint(round(ALonLat.x * 100000) / 100000) + '%2C' +
     R2AnsiStrPoint(round(ALonLat.y * 100000) / 100000) +
-    '&z=' + IntToStrA(AProjection.Zoom) +
+    '&z=' + ALIntToStr(AProjection.Zoom) +
     '&l=sat';
 end;
 
@@ -331,7 +331,7 @@ begin
     'http://maps.google.com/?ie=UTF8&ll=' +
     R2AnsiStrPoint(ALonLat.y) + ',' +
     R2AnsiStrPoint(ALonLat.x) +
-    '&spn=57.249013,100.371094&t=h&z=' + IntToStrA(AProjection.Zoom);
+    '&spn=57.249013,100.371094&t=h&z=' + ALIntToStr(AProjection.Zoom);
 end;
 
 { TUrlByCoordProviderGTopo30 }
@@ -380,7 +380,7 @@ begin
     '&lon=' + R2AnsiStrPoint(ALonLat.x) +
     '&mlat=' + R2AnsiStrPoint(ALonLat.y) +
     '&mlon=' + R2AnsiStrPoint(ALonLat.x) +
-    '&zoom=' + IntToStrA(AProjection.Zoom);
+    '&zoom=' + ALIntToStr(AProjection.Zoom);
 end;
 
 { TUrlByCoordProviderNokia }
@@ -401,7 +401,7 @@ begin
     'http://maps.nokia.com/mapcreator/?ns=True#|' +
     R2AnsiStrPoint(ALonLat.y) + '|' +
     R2AnsiStrPoint(ALonLat.x) + '|' +
-    IntToStrA(AProjection.Zoom) +
+    ALIntToStr(AProjection.Zoom) +
     '|0|0|';
 end;
 
@@ -455,7 +455,7 @@ begin
 
   Result :=
     'https://pkk.rosreestr.ru/#/search/' +
-    VLat + ',' + VLon + '/' + IntToStrA(VZoom) + '/' +
+    VLat + ',' + VLon + '/' + ALIntToStr(VZoom) + '/' +
     '@470200?text=' + VLat + '%20' + VLon + '&type=1&inPoint=true';
 end;
 

@@ -24,7 +24,7 @@ unit t_CoordRepresentation;
 interface
 
 type
-  TGeogCoordShowFormat = (
+  TDegrShowFormat = (
     dshCharDegrMinSec,
     dshCharDegrMin,
     dshCharDegr,
@@ -35,24 +35,10 @@ type
     dshSignDegr2
   );
 
-  TProjCoordShowFormat = (
-    psfRoundedToWhole,
-    psfRoundedToTenth,
-    psfRoundedToHundredths,
-    psfRoundedToThousandths
-  );
-
-  TMgrsCoordShowFormat = (
-    msfSplitted,
-    msfJoined
-  );
-
   TCoordSysType = (
-    cstWGS84,   // WGS 84 / Geographic
-    cstSK42,    // SK-42 (Pulkovo-1942) / Geographic
-    cstSK42GK,  // SK-42 / Gauss-Kruger zones
-    cstUTM,     // WGS 84 / UTM zones
-    cstMGRS     // WGS 84 / MGRS
+    cstWGS84 = 0,
+    cstSK42 = 1,    // SK42 (Pulkovo-1942)
+    cstSK42GK = 2   // SK42 in Gauss-Kruger projection
   );
 
   TCoordSysInfoType = (

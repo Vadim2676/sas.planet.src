@@ -36,7 +36,6 @@ type
     FIsFullScreen: Boolean;
     FIsMaximized: Boolean;
     FIsMinimized: Boolean;
-    FIsBordersVisible: Boolean;
     FBoundsRect: TRect;
   protected
     procedure DoReadConfig(const AConfigData: IConfigDataProvider); override;
@@ -54,8 +53,6 @@ type
     function GetIsMinimized: Boolean;
     procedure SetNotMinimized;
     procedure SetMinimized;
-    function GetIsBordersVisible: Boolean;
-    procedure ToggleBordersVisible;
   public
     constructor Create(const AStartRect: TRect);
   end;
@@ -71,7 +68,6 @@ begin
   FIsFullScreen := False;
   FIsMaximized := False;
   FIsMinimized := False;
-  FIsBordersVisible := True;
 end;
 
 procedure TMainWindowPositionConfig.DoReadConfig(const AConfigData: IConfigDataProvider);
@@ -86,7 +82,6 @@ begin
     );
     FIsMaximized := AConfigData.ReadBool('Maximized', FIsMaximized);
     FIsFullScreen := AConfigData.ReadBool('FullScreen', FIsFullScreen);
-    FIsBordersVisible := AConfigData.ReadBool('BordersVisible', FIsBordersVisible);
     SetChanged;
   end;
 end;
@@ -98,7 +93,6 @@ begin
   inherited;
   AConfigData.WriteBool('FullScreen', FIsFullScreen);
   AConfigData.WriteBool('Maximized', FIsMaximized);
-  AConfigData.WriteBool('BordersVisible', FIsBordersVisible);
   AConfigData.WriteInteger('Left', FBoundsRect.Left);
   AConfigData.WriteInteger('Top', FBoundsRect.Top);
   AConfigData.WriteInteger('Width', FBoundsRect.Right - FBoundsRect.Left);
@@ -140,16 +134,6 @@ begin
   LockRead;
   try
     Result := FIsMinimized;
-  finally
-    UnlockRead;
-  end;
-end;
-
-function TMainWindowPositionConfig.GetIsBordersVisible: Boolean;
-begin
-  LockRead;
-  try
-    Result := FIsBordersVisible;
   finally
     UnlockRead;
   end;
@@ -203,17 +187,6 @@ begin
       FIsFullScreen := False;
       SetChanged;
     end;
-  finally
-    UnlockWrite;
-  end;
-end;
-
-procedure TMainWindowPositionConfig.ToggleBordersVisible;
-begin
-  LockWrite;
-  try
-    FIsBordersVisible := not FIsBordersVisible;
-    SetChanged;
   finally
     UnlockWrite;
   end;

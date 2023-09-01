@@ -86,6 +86,9 @@ implementation
 uses
   SysUtils,
   StrUtils,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   ArgumentParser,
   t_GeoTypes,
   i_StringListStatic,

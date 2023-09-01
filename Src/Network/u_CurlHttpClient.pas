@@ -124,13 +124,6 @@ begin
     Result := 0;
     Exit;
   end;
-
-  if IdemPChar(AData, 'HTTP/') then begin
-    // collect the headers of only the last response
-    // https://curl.se/libcurl/c/CURLOPT_HEADERFUNCTION.html
-    VSelf.FResp.Headers := '';
-  end;
-
   VHeader := @VSelf.FResp.Headers;
   VHeaderLen := Length(VHeader^);
   Result := ASize * ANmemb;
@@ -258,7 +251,7 @@ begin
   FProxy := cCurlDefaultProxy;
 
   if curl.Module = 0 then begin
-    LibCurlInitialize([giAll], 'libcurl.dll');
+    LibCurlInitialize;
   end else
   if not CurlIsAvailable then begin
     raise ECurl.Create('Curl library is not available');

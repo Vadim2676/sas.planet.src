@@ -24,13 +24,13 @@ unit u_ContentConverterMatrix;
 interface
 
 uses
-  u_AnsiStr,
+  ALStringList,
   i_ContentConverter;
 
 type
   TContentConverterMatrix = class
   private
-    FList: TStringListA;
+    FList: TALStringList;
   public
     constructor Create;
     destructor Destroy; override;
@@ -70,7 +70,7 @@ end;
 constructor TContentConverterMatrix.Create;
 begin
   inherited Create;
-  FList := TStringListA.Create;
+  FList := TALStringList.Create;
   FList.Sorted := True;
   FList.Duplicates := dupError;
 end;

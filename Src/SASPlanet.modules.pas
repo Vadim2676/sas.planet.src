@@ -46,7 +46,8 @@ uses
   {$IF (CompilerVersion < 23) or (CompilerVersion >= 27)}
   MidasLib, // bug in MidasLib.dcu in XE2..XE5 http://qc.embarcadero.com/wc/qcmain.aspx?d=109476
   {$IFEND}
-  WinInetFix;
+  WinInetFix,
+  XPMan;
 
 implementation
 

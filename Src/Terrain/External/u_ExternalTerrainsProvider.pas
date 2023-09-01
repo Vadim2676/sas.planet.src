@@ -26,14 +26,13 @@ interface
 uses
   Windows,
   Types,
+  Classes,
   t_GeoTypes,
+  u_ExternalTerrainAPI,
   i_Notifier,
-  i_Listener,
   i_ConfigDataProvider,
   i_ProjConverter,
-  i_TerrainConfig,
   i_TerrainProvider,
-  u_ExternalTerrainAPI,
   u_BaseInterfacedObject;
 
 type
@@ -46,15 +45,11 @@ type
 
   TTerrainProviderByExternal = class(TBaseInterfacedObject, ITerrainProvider)
   private
-    FUseInterpolation: Boolean;
-
     FDefaultPath: String;
     FProjConverter: IProjConverter;
-    FConfig: ITerrainConfig;
-    FConfigListener: IListener;
-
     // opened file
-    FTerrainFile: TTerrainFile;
+    FFileHandle: THandle;
+    FFileName: String;
     FBaseFolder: String;
     // options
     FAvailable: Boolean;
@@ -72,7 +67,8 @@ type
       out ALinesCount: Integer;
       out ASamplesCount: Integer
     );
-    procedure OnConfigChange;
+  private
+    procedure InternalClose;
   private
     function GetFilenamePart(
       const AValue: Integer;
@@ -89,7 +85,6 @@ type
     function GetStateChangeNotifier: INotifier;
   public
     constructor Create(
-      const AConfig: ITerrainConfig;
       const ADefaultPath: String;
       const AProjConverter: IProjConverter;
       const AOptions: IConfigDataProvider
@@ -104,32 +99,26 @@ uses
   StrUtils,
   SysUtils,
   c_TerrainProvider,
-  u_FileSystemFunc,
-  u_ListenerByEvent;
+  u_FileSystemFunc;
 
 { TTerrainProviderByExternal }
 
 constructor TTerrainProviderByExternal.Create(
-  const AConfig: ITerrainConfig;
   const ADefaultPath: String;
   const AProjConverter: IProjConverter;
   const AOptions: IConfigDataProvider
 );
 begin
-  Assert(AConfig <> nil);
-
   inherited Create;
 
-  FConfig := AConfig;
   FProjConverter := AProjConverter;
   FDefaultPath := IncludeTrailingPathDelimiter(ADefaultPath);
 
-  FUseInterpolation := FConfig.UseInterpolation;
-  FConfigListener := TNotifyNoMmgEventListener.Create(Self.OnConfigChange);
-  FConfig.ChangeNotifier.Add(FConfigListener);
-
   // read options
   // if failed - create object but disable it
+  FFileHandle := 0;
+  FFileName := '';
+  FBaseFolder := '';
   FAvailable := AOptions.ReadBool('Enabled', False);
 
   if (not FAvailable) then begin
@@ -184,18 +173,14 @@ begin
   end else begin
     FDynamicOptionsReader := nil;
   end;
-
-  FTerrainFile := TTerrainFile.Create(FByteOrder, FVoidValue);
 end;
 
 destructor TTerrainProviderByExternal.Destroy;
 begin
-  if (FConfig <> nil) and (FConfigListener <> nil) then begin
-    FConfig.ChangeNotifier.Remove(FConfigListener);
-    FConfigListener := nil;
-  end;
-  FreeAndNil(FTerrainFile);
+  InternalClose;
+
   FProjConverter := nil;
+
   inherited;
 end;
 
@@ -230,13 +215,13 @@ function TTerrainProviderByExternal.GetPointElevation(
   const AZoom: Byte
 ): Single;
 var
-  VDone: Boolean;
   VFilePoint: TPoint;
-  VRow, VCol: Integer;
-  VRowsCount, VColsCount: Integer;
-  VFilenameForPoint: string;
-  x, y, dx, dy: Single;
-  p0, p1, p2, p3: Single;
+  VIndexInLines, VIndexInSamples: LongInt;
+  VCustomRowCount: Integer;
+  VFilenameForPoint: String;
+  VDone: Boolean;
+  VElevationData: SmallInt; // signed 16bit
+  VLinesCount, VSamplesCount: Integer;
 begin
   Result := cUndefinedElevationValue;
 
@@ -246,19 +231,25 @@ begin
   end;
 
   if Assigned(FDynamicOptionsReader) then begin
-    FDynamicOptionsReader(ALonLat, VRowsCount, VColsCount);
+    FDynamicOptionsReader(ALonLat, VLinesCount, VSamplesCount);
   end else begin
-    VRowsCount := FLinesCount;
-    VColsCount := FSamplesCount;
+    VLinesCount := FLinesCount;
+    VSamplesCount := FSamplesCount;
   end;
 
   // get filename for given point
   // use common 1x1 distribution (GDEM, STRM, viewfinderpanoramas)
   // TODO: see 'file' implementation for ETOPO1 in ExternalTerrains.dll source
   // TODO: see 'a-p,50' implementation for GLOBE in ExternalTerrains.dll source
+  VCustomRowCount := VLinesCount;
 
   VFilePoint.X := Floor(ALonLat.X);
   VFilePoint.Y := Floor(ALonLat.Y);
+
+  // StripIndex
+  VIndexInLines := Round((1 - (ALonLat.Y - VFilePoint.Y)) * (VLinesCount - 1));
+  // ColumnIndex
+  VIndexInSamples := Round((ALonLat.X - VFilePoint.X) * (VSamplesCount - 1));
 
   // make filename
   VFilenameForPoint :=
@@ -268,41 +259,58 @@ begin
     GetFilenamePart(VFilePoint.X, 'E', 'W', FLonDigitsWidth) +
     FSuffix;
 
-  if not FTerrainFile.Open(VFilenameForPoint, VRowsCount, VColsCount) then begin
+  // if file not opened or opened another file - open this
+  if (FFileName <> VFilenameForPoint) or (FFileHandle = 0) then begin
+    InternalClose;
+    FFileName := VFilenameForPoint;
+    // open file
+    FFileHandle := CreateFile(PChar(FFileName), GENERIC_READ, FILE_SHARE_READ,
+      nil, OPEN_EXISTING, 0, 0);
+
+    if FFileHandle = INVALID_HANDLE_VALUE then begin
+      FFileHandle := 0;
+    end;
+  end;
+
+  if FFileHandle = 0 then begin
     Exit;
   end;
 
-  X := (ALonLat.X - VFilePoint.X) * (VColsCount - 1);
-  Y := (ALonLat.Y - VFilePoint.Y) * (VRowsCount - 1);
-
-  if FUseInterpolation then begin
-    VCol := Trunc(X);
-    VRow := Trunc(Y);
-
-    VDone :=
-      FTerrainFile.FindElevation(VRow, VCol, p0) and
-      FTerrainFile.FindElevation(VRow, VCol + 1, p1) and
-      FTerrainFile.FindElevation(VRow + 1, VCol, p2) and
-      FTerrainFile.FindElevation(VRow + 1, VCol + 1, p3);
-
-    // interpolate
-    if VDone then begin
-      dx := X - Floor(X);
-      dy := Y - Floor(Y);
-
-      Result :=
-        p0 * (1 - dx) * (1 - dy) +
-        p1 * dx * (1 - dy) +
-        p2 * dy * (1 - dx) +
-        p3 * dx * dy;
-    end;
+  // check format
+  if SameText(ExtractFileExt(FFileName), '.tif') then begin
+    // with tiff header
+    VDone := FindElevationInTiff(
+      FFileHandle,
+      VIndexInLines,
+      VIndexInSamples,
+      VCustomRowCount,
+      VSamplesCount,
+      VElevationData
+    );
   end else begin
-    VCol := Round(X);
-    VRow := Round(Y);
+    // without header
+    VDone := FindElevationInPlain(
+      FFileHandle,
+      VIndexInLines,
+      VIndexInSamples,
+      VCustomRowCount,
+      VSamplesCount,
+      VElevationData
+    );
+  end;
 
-    if FTerrainFile.FindElevation(VRow, VCol, p0) then begin
-      Result := p0;
-    end;
+  // check byte inversion
+  if VDone and (FByteOrder <> 0) then begin
+    SwapInWord(@VElevationData);
+  end;
+
+  // check voids and result
+  if not VDone or ((FVoidValue <> 0) and (FVoidValue = VElevationData)) then begin
+    // void or failed
+    Result := cUndefinedElevationValue;
+  end else begin
+    // ok
+    Result := VElevationData;
   end;
 end;
 
@@ -311,9 +319,12 @@ begin
   Result := nil;
 end;
 
-procedure TTerrainProviderByExternal.OnConfigChange;
+procedure TTerrainProviderByExternal.InternalClose;
 begin
-  FUseInterpolation := FConfig.UseInterpolation;
+  if FFileHandle <> 0 then begin
+    CloseHandle(FFileHandle);
+    FFileHandle := 0;
+  end;
 end;
 
 procedure TTerrainProviderByExternal.AlosDynamicOptionsReader(

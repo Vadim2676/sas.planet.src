@@ -24,6 +24,9 @@ unit u_MultiPoligonParser;
 interface
 
 uses
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   t_GeoTypes,
   i_GeometryLonLatFactory,
   i_DoublePointsAggregator,
@@ -111,7 +114,7 @@ implementation
 uses
   SysUtils,
   u_DoublePointsAggregator,
-  u_AnsiStr,
+  u_StrFunc,
   u_GeoToStrFunc;
 
 function _IsCoord(const ASym: Char): Boolean;

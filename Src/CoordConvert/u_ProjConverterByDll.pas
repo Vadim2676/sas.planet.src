@@ -24,7 +24,7 @@ unit u_ProjConverterByDll;
 interface
 
 uses
-  Proj4.API,
+  Proj4,
   t_GeoTypes,
   i_ProjConverter,
   u_BaseInterfacedObject;
@@ -53,7 +53,7 @@ implementation
 
 uses
   SysUtils,
-  Proj4.Defines;
+  Proj4Defs;
 
 type
   EProjConverterByDllError = class(Exception);

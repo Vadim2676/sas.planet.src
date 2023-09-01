@@ -431,10 +431,17 @@ begin
   VPerfList := APerfListGroup.CreateAndAddNewSubList(VDebugName);
   VVectorOversizeRect := Rect(10, 10, 10, 10);
 
-  VMarkerChangeable :=
-    TMarkerDrawableChangeableSimple.Create(
-      TMarkerDrawableSimpleSquare,
-      ALayersConfig.KmlLayerConfig.PointMarkerConfig
+  VBitmap :=
+    ReadBitmapByFileRef(
+      AResourceProvider,
+      'PANORAMIO.png',
+      AContentTypeManager,
+      nil
+    );
+  VBitmapMarker :=
+    TBitmapMarker.Create(
+      VBitmap,
+      DoublePoint(VBitmap.Size.X / 2, VBitmap.Size.Y / 2)
     );
 
   VVectorTileProvider :=
@@ -483,8 +490,7 @@ begin
   VVectorRenderer :=
     TVectorTileRendererChangeableForVectorMaps.Create(
       ALayersConfig.KmlLayerConfig.DrawConfig,
-      nil,
-      VMarkerChangeable,
+      VBitmapMarker,
       ABitmap32StaticFactory,
       AProjectedGeometryProvider,
       VMarkerIconProvider
@@ -681,7 +687,6 @@ begin
     TVectorTileRendererChangeableForVectorMaps.Create(
       ALayersConfig.KmlLayerConfig.DrawConfig,
       VBitmapMarker,
-      nil,
       ABitmap32StaticFactory,
       AProjectedGeometryProvider,
       VMarkerIconProvider

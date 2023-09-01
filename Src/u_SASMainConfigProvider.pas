@@ -43,6 +43,10 @@ uses
   SysUtils,
   StrUtils,
   IniFiles,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  CompatibilityIniFiles,
+  {$ENDIF}
   i_ConfigDataProvider,
   i_ConfigDataWriteProvider,
   u_ConfigDataWriteProviderByIniFile,

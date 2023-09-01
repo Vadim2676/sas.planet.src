@@ -57,6 +57,7 @@ implementation
 
 uses
   SysUtils,
+  ALString,
   superobject,
   t_GeoTypes,
   i_VectorDataItemSimple,
@@ -173,7 +174,7 @@ function TGeoCoderByGoogle.PrepareRequest(
   const ALocalConverter: ILocalCoordConverter
 ): IDownloadRequest;
 var
-  VUrl, VSearch: string;
+  VSearch: string;
   VProjection: IProjection;
   VMapRect: TDoubleRect;
   VLonLatRect: TDoubleRect;
@@ -185,17 +186,17 @@ begin
   VLonLatRect := VProjection.PixelRectFloat2LonLatRect(VMapRect);
 
   // https://developers.google.com/maps/documentation/geocoding/index
-  VUrl :=
-    'https://maps.googleapis.com/maps/api/geocode/json?' +
-    'key=' + FApiKey +
-    '&address=' + URLEncode(AnsiToUtf8(VSearch)) +
-    '&sensor=false' +
-    '&language=' + StringReplace(SAS_STR_GoogleSearchLanguage, '&hl=', '', [rfIgnoreCase]) +
-    '&bounds=' +
-    R2StrPoint(VLonLatRect.Bottom) + ',' + R2StrPoint(VLonLatRect.Left) + '|' +
-    R2StrPoint(VLonLatRect.Top) + ',' + R2StrPoint(VLonLatRect.Right);
-
-  Result := PrepareRequestByURL(AnsiString(VUrl));
+  Result :=
+    PrepareRequestByURL(
+      'https://maps.googleapis.com/maps/api/geocode/json?' +
+      'key=' + AnsiString(FApiKey) +
+      '&address=' + URLEncode(AnsiToUtf8(VSearch)) +
+      '&sensor=false' +
+      '&language=' + ALStringReplace(AnsiString(SAS_STR_GoogleSearchLanguage), '&hl=', '', [rfIgnoreCase]) +
+      '&bounds=' +
+      R2AnsiStrPoint(VLonLatRect.Bottom) + ',' + R2AnsiStrPoint(VLonLatRect.Left) + '|' +
+      R2AnsiStrPoint(VLonLatRect.Top) + ',' + R2AnsiStrPoint(VLonLatRect.Right)
+    );
 end;
 
 end.

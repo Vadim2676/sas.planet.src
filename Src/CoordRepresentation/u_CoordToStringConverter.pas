@@ -34,9 +34,7 @@ type
   TCoordToStringConverter = class(TBaseInterfacedObject, ICoordToStringConverter)
   private
     FIsLatitudeFirst: Boolean;
-    FGeogCoordShowFormat: TGeogCoordShowFormat;
-    FProjCoordShowFormat: TProjCoordShowFormat;
-    FMgrsCoordShowFormat: TMgrsCoordShowFormat;
+    FDegrShowFormat: TDegrShowFormat;
     FCoordSysType: TCoordSysType;
     FCoordSysInfoType: TCoordSysInfoType;
     FEastMarker: string;
@@ -53,32 +51,23 @@ type
     function GetLatitudeMarker(const ADegr: Double): string;
     function GetLongitudeMarker(const ADegr: Double): string;
   private
-    { ICoordToStringConverter }
     function GetCoordSysInfo(
       const ALonLat: TDoublePoint
     ): string;
-
     function LonLatConvert(
-      const ALonLat: TDoublePoint;
-      const AOptions: TCoordToStringConverterOptions = []
-    ): string;
-
-    function LonLatConvertExt(
-      const ALonLat: TDoublePoint;
-      const AOptions: TCoordToStringConverterOptions = []
-    ): TCoordPartArray; overload; inline;
-
-    function LonLatConvertExt(
-      const ALonLat: TDoublePoint;
-      const ACoordSysType: TCoordSysType;
-      const AOptions: TCoordToStringConverterOptions = []
-    ): TCoordPartArray; overload;
+      const ALonLat: TDoublePoint
+    ): string; overload;
+    procedure LonLatConvert(
+      const ALon: Double;
+      const ALat: Double;
+      const ACutZero: Boolean;
+      out ALonStr: string;
+      out ALatStr: string
+    ); overload;
   public
     constructor Create(
       const AIsLatitudeFirst: Boolean;
-      const AGeogCoordShowFormat: TGeogCoordShowFormat;
-      const AProjCoordShowFormat: TProjCoordShowFormat;
-      const AMgrsCoordShowFormat: TMgrsCoordShowFormat;
+      const ADegrShowFormat: TDegrShowFormat;
       const ACoordSysType: TCoordSysType;
       const ACoordSysInfoType: TCoordSysInfoType
     );
@@ -89,30 +78,21 @@ implementation
 uses
   Math,
   StrUtils,
-  gnugettext,
-  Proj4.UTM,
-  Proj4.GaussKruger,
-  u_CoordRepresentation,
-  u_GeoFunc,
-  u_StrFunc,
+  Proj4SK42,
   u_ResStrings;
 
 { TCoordToStringConverter }
 
 constructor TCoordToStringConverter.Create(
   const AIsLatitudeFirst: Boolean;
-  const AGeogCoordShowFormat: TGeogCoordShowFormat;
-  const AProjCoordShowFormat: TProjCoordShowFormat;
-  const AMgrsCoordShowFormat: TMgrsCoordShowFormat;
+  const ADegrShowFormat: TDegrShowFormat;
   const ACoordSysType: TCoordSysType;
   const ACoordSysInfoType: TCoordSysInfoType
 );
 begin
   inherited Create;
   FIsLatitudeFirst := AIsLatitudeFirst;
-  FGeogCoordShowFormat := AGeogCoordShowFormat;
-  FProjCoordShowFormat := AProjCoordShowFormat;
-  FMgrsCoordShowFormat := AMgrsCoordShowFormat;
+  FDegrShowFormat := ADegrShowFormat;
   FCoordSysType := ACoordSysType;
   FCoordSysInfoType := ACoordSysInfoType;
   FNorthMarker := 'N';
@@ -142,7 +122,7 @@ var
 begin
   Result := '';
   VDegr := Abs(ADegr);
-  case FGeogCoordShowFormat of
+  case FDegrShowFormat of
 
     dshCharDegrMinSec, dshSignDegrMinSec: begin
       VValue := Trunc(VDegr * 60 * 60 * 10000 + 0.005);
@@ -215,20 +195,20 @@ begin
         end;
       end;
 
-      if FGeogCoordShowFormat in [dshCharDegr, dshSignDegr] then begin
+      if FDegrShowFormat in [dshCharDegr, dshSignDegr] then begin
         Result := Result + '°';
       end;
     end;
   else
     raise Exception.CreateFmt(
-      'Unexpected degree format value: %d', [Integer(FGeogCoordShowFormat)]
+      'Unexpected degree format value: %d', [Integer(FDegrShowFormat)]
     );
   end;
 end;
 
 function TCoordToStringConverter.GetLatitudeMarker(const ADegr: Double): string;
 begin
-  case FGeogCoordShowFormat of
+  case FDegrShowFormat of
     dshCharDegrMinSec, dshCharDegrMin, dshCharDegr, dshCharDegr2: begin
       if ADegr > 0 then begin
         Result := FNorthMarker;
@@ -250,7 +230,7 @@ end;
 
 function TCoordToStringConverter.GetLongitudeMarker(const ADegr: Double): string;
 begin
-  case FGeogCoordShowFormat of
+  case FDegrShowFormat of
     dshCharDegrMinSec, dshCharDegrMin, dshCharDegr, dshCharDegr2: begin
       if ADegr > 0 then begin
         Result := FEastMarker;
@@ -274,192 +254,84 @@ function TCoordToStringConverter.GetCoordSysInfo(
   const ALonLat: TDoublePoint
 ): string;
 begin
-  if FCoordSysInfoType = csitDontShow then begin
-    Result := '';
-    Exit;
-  end;
-
-  Result := GetCoordSysTypeCaptionShort[FCoordSysType];
-
-  case FCoordSysType of
-    cstWGS84: begin
-      if FCoordSysInfoType = csitShowExceptWGS84 then begin
-        Result := '';
+  Result := '';
+  if FCoordSysInfoType <> csitDontShow then begin
+    case FCoordSysType of
+      cstWGS84: begin
+        if FCoordSysInfoType <> csitShowExceptWGS84 then begin
+          Result := 'GEO (WGS84)';
+        end;
       end;
-    end;
-
-    cstUTM: begin
-      if (ALonLat.Y >= 84) or (ALonLat.Y <= -80) then begin
-        Result := GetUPSCoordSysTypeCaptionShort;
+      cstSK42: begin
+        Result := 'GEO (S-42)';
       end;
+      cstSK42GK: begin
+        Result := Format('GK%d (S-42) ', [long_to_gauss_kruger_zone(ALonLat.X)]);
+      end
+    else
+      Assert(False, 'Unknown CoordSysType: ' + IntToStr(Integer(FCoordSysType)));
     end;
   end;
 end;
 
 function TCoordToStringConverter.LonLatConvert(
-  const ALonLat: TDoublePoint;
-  const AOptions: TCoordToStringConverterOptions
+  const ALonLat: TDoublePoint
 ): string;
-const
-  CSep: array [Boolean] of string = ('', ' ');
 var
-  I: TCoordPartItem;
-  VArr: TCoordPartArray;
-  VOptions: TCoordToStringConverterOptions;
+  VLatStr: string;
+  VLonStr: string;
 begin
-  VOptions := AOptions;
-
-  if FIsLatitudeFirst then begin
-    Include(VOptions, coLatitudeFirst);
-  end;
-
-  VArr := LonLatConvertExt(ALonLat, FCoordSysType, VOptions);
-
-  Result := '';
-  for I := Low(TCoordPartItem) to High(TCoordPartItem) do begin
-    if VArr[I] <> '' then begin
-      Result := Result + CSep[Result <> ''] + VArr[I];
-    end;
+  LonLatConvert(ALonLat.X, ALonLat.Y, False, VLonStr, VLatStr);
+  if FIsLatitudeFirst and (FCoordSysType in [cstWGS84, cstSK42]) then begin
+    Result := VLatStr + ' ' + VLonStr;
+  end else begin
+    Result := VLonStr + ' ' + VLatStr;
   end;
 end;
 
-function TCoordToStringConverter.LonLatConvertExt(
-  const ALonLat: TDoublePoint;
-  const AOptions: TCoordToStringConverterOptions
-): TCoordPartArray;
-begin
-  Result := LonLatConvertExt(ALonLat, FCoordSysType, AOptions);
-end;
-
-function TCoordToStringConverter.LonLatConvertExt(
-  const ALonLat: TDoublePoint;
-  const ACoordSysType: TCoordSysType;
-  const AOptions: TCoordToStringConverterOptions = []
-): TCoordPartArray;
+procedure TCoordToStringConverter.LonLatConvert(
+  const ALon: Double;
+  const ALat: Double;
+  const ACutZero: Boolean;
+  out ALonStr: string;
+  out ALatStr: string
+);
 
   procedure _GeodeticCoordToStr(const ALonLat: TDoublePoint; out ALon, ALat: string);
   begin
-    ALon := GetLongitudeMarker(ALonLat.X) + DegrToStr(ALonLat.X, coCutZero in AOptions);
-    ALat := GetLatitudeMarker(ALonLat.Y) + DegrToStr(ALonLat.Y, coCutZero in AOptions);
-
-    if coLatitudeFirst in AOptions then begin
-      SwapStr(ALon, ALat);
-    end;
+    ALon := GetLongitudeMarker(ALonLat.X) + DegrToStr(ALonLat.X, ACutZero);
+    ALat := GetLatitudeMarker(ALonLat.Y) + DegrToStr(ALonLat.Y, ACutZero);
   end;
 
-  procedure _ProjectedCoordToStr(const X, Y: Double; const ASwapXY: Boolean; out AX, AY: string);
-  const
-    CFloatFormat: array[TProjCoordShowFormat] of string = ('0.', '0.0', '0.00', '0.000');
+  procedure _ProjectedCoordToStr(const AXY: TDoublePoint; out AX, AY: string);
   begin
-    AX := FloatToStr(CFloatFormat[FProjCoordShowFormat], X);
-    AY := FloatToStr(CFloatFormat[FProjCoordShowFormat], Y);
-
-    if ASwapXY then begin
-      SwapStr(AX, AY);
-    end;
-  end;
-
-  procedure _MgrsCoordToStr(const AMgrs: TMgrsCoord; out AZone, AX, AY: string);
-  const
-    CMgrsCoordFormat = '%.5d';
-  var
-    VZone: string;
-  begin
-    AX := Format(CMgrsCoordFormat, [AMgrs.X]);
-    AY := Format(CMgrsCoordFormat, [AMgrs.Y]);
-
-    VZone := IntToStr(AMgrs.Zone);
-    if AMgrs.Zone = 0 then begin
-      VZone := '';
-    end;
-
-    case FMgrsCoordShowFormat of
-      msfSplitted : begin
-        AZone := VZone + AMgrs.Band + ' ' + AMgrs.Digraph[0] + AMgrs.Digraph[1];
-      end;
-
-      msfJoined: begin
-        AZone := VZone + AMgrs.Band + AMgrs.Digraph[0] + AMgrs.Digraph[1] + AX + AY;
-        AX := '';
-        AY := '';
-      end
-    else
-      Assert(False);
-    end;
-  end;
-
-  function _ZoneInfoToStr(const AZone: Integer; const AIsNorth: Boolean): string;
-  const
-    CNorth: array[Boolean] of string = ('S', 'N');
-  begin
-    Result := '';
-
-    if not (coIncludeZone in AOptions) then begin
-      Exit;
-    end;
-
-    if AZone > 0 then begin
-      Result := IntToStr(AZone);
-    end;
-
-    Result := Result + CNorth[AIsNorth];
+    AX := FloatToStr('0.00', AXY.X);
+    AY := FloatToStr('0.00', AXY.Y);
   end;
 
 var
-  VUtm: TUtmCoord;
-  VMgrs: TMgrsCoord;
-  VGauss: TGaussKrugerCoord;
-  VGeogLonLat: TDoublePoint;
-  VLonStr, VLatStr, VZoneStr: string;
+  VPoint: TDoublePoint;
+  VLonLat: TDoublePoint;
 begin
-  VLonStr := 'NaN';
-  VLatStr := 'NaN';
-  VZoneStr := '';
-
-  case ACoordSysType of
-    cstWGS84: begin // WGS 84 / Geographic
-      _GeodeticCoordToStr(ALonLat, VLonStr, VLatStr);
+  ALonStr := 'NaN';
+  ALatStr := 'NaN';
+  VLonLat.X := ALon;
+  VLonLat.Y := ALat;
+  case FCoordSysType of
+    cstWGS84: begin
+      _GeodeticCoordToStr(VLonLat, ALonStr, ALatStr);
     end;
-
-    cstSK42: begin // Pulkovo-1942 / Geographic
-      VGeogLonLat := ALonLat;
-      if geodetic_wgs84_to_sk42(VGeogLonLat.X, VGeogLonLat.Y) then begin
-        _GeodeticCoordToStr(VGeogLonLat, VLonStr, VLatStr);
+    cstSK42: begin
+      if geodetic_wgs84_to_sk42(VLonLat.X, VLonLat.Y) then begin
+        _GeodeticCoordToStr(VLonLat, ALonStr, ALatStr);
       end;
     end;
-
-    cstSK42GK: begin // Pulkovo-1942 / Gauss-Kruger
-      if geodetic_wgs84_to_gauss_kruger(ALonLat.X, ALonLat.Y, VGauss) then begin
-        _ProjectedCoordToStr(VGauss.X, VGauss.Y, {Swap=}True, VLonStr, VLatStr);
-        VZoneStr := _ZoneInfoToStr(VGauss.Zone, VGauss.IsNorth);
+    cstSK42GK: begin
+      if geodetic_wgs84_to_gauss_kruger(VLonLat.X, VLonLat.Y, VPoint.X, VPoint.Y) then begin
+        _ProjectedCoordToStr(VPoint, ALatStr, ALonStr); // !
       end;
     end;
-
-    cstUTM: begin
-      if geodetic_wgs84_to_utm(ALonLat.X, ALonLat.Y, VUtm) then begin
-        // WGS 84 / UTM
-        _ProjectedCoordToStr(VUtm.X, VUtm.Y, {Swap=}False, VLonStr, VLatStr);
-        VZoneStr := _ZoneInfoToStr(VUtm.Zone, VUtm.IsNorth);
-      end else
-      if geodetic_wgs84_to_ups(ALonLat.X, ALonLat.Y, VUtm) then begin
-        // WGS 84 / UPS
-        _ProjectedCoordToStr(VUtm.X, VUtm.Y, {Swap=}True, VLonStr, VLatStr);
-        VZoneStr := _ZoneInfoToStr(VUtm.Zone, VUtm.IsNorth);
-      end;
-    end;
-
-    cstMGRS: begin
-      if geodetic_wgs84_to_mgrs(ALonLat.X, ALonLat.Y, VMgrs) then begin
-        _MgrsCoordToStr(VMgrs, VZoneStr, VLonStr, VLatStr);
-      end;
-    end;
-  else
-    Assert(False);
   end;
-
-  Result[cpiZone] := VZoneStr;
-  Result[cpiLon] := VLonStr;
-  Result[cpiLat] := VLatStr;
 end;
 
 end.

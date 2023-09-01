@@ -88,7 +88,7 @@ uses
   SyncObjs,
   i_ListenerTime,
   u_ListenerTime,
-  u_AnsiStr,
+  u_StrFunc,
   u_BaseInterfacedObject;
 
 resourcestring

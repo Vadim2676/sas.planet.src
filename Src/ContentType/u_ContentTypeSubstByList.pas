@@ -24,7 +24,7 @@ unit u_ContentTypeSubstByList;
 interface
 
 uses
-  u_AnsiStr,
+  ALStringList,
   i_ConfigDataProvider,
   i_ContentTypeSubst,
   u_BaseInterfacedObject;
@@ -32,8 +32,8 @@ uses
 type
   TContentTypeSubstByList = class(TBaseInterfacedObject, IContentTypeSubst)
   private
-    FSource: TStringListA;
-    FTarget: TStringListA;
+    FSource: TALStringList;
+    FTarget: TALStringList;
     procedure ParseSubstList(const ASubstListText: AnsiString);
     procedure ParseSubstListItem(const ASubstListItemText: AnsiString);
   private
@@ -55,8 +55,8 @@ var
   VSubstListText: AnsiString;
 begin
   inherited Create;
-  FSource := TStringListA.Create;
-  FTarget := TStringListA.Create;
+  FSource := TALStringList.Create;
+  FTarget := TALStringList.Create;
   VSubstListText := AConfig.ReadAnsiString('MimeTypeSubst', '');
   if VSubstListText <> '' then begin
     ParseSubstList(VSubstListText);
@@ -86,11 +86,11 @@ end;
 
 procedure TContentTypeSubstByList.ParseSubstList(const ASubstListText: AnsiString);
 var
-  VTempList: TStringListA;
+  VTempList: TALStringList;
   i: Integer;
   VSubstItemText: AnsiString;
 begin
-  VTempList := TStringListA.Create;
+  VTempList := TALStringList.Create;
   try
     VTempList.QuoteChar := '"';
     VTempList.Delimiter := ';';
@@ -109,12 +109,12 @@ end;
 procedure TContentTypeSubstByList.ParseSubstListItem(
   const ASubstListItemText: AnsiString);
 var
-  VTempList: TStringListA;
+  VTempList: TALStringList;
   VSource: AnsiString;
   VTarget: AnsiString;
   VTargetIndex: Integer;
 begin
-  VTempList := TStringListA.Create;
+  VTempList := TALStringList.Create;
   try
     VTempList.QuoteChar := '"';
     VTempList.Delimiter := '=';

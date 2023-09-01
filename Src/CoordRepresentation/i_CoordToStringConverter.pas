@@ -25,24 +25,9 @@ interface
 
 uses
   t_GeoTypes,
-  t_CoordRepresentation,
   i_Changeable;
 
 type
-  TCoordToStringConverterOption = (
-    coCutZero,
-    coIncludeZone,
-    coLatitudeFirst
-  );
-
-  TCoordToStringConverterOptions = set of TCoordToStringConverterOption;
-
-  TCoordPartItem = (
-    cpiZone, cpiLon, cpiLat // do not change order
-  );
-
-  TCoordPartArray = array[TCoordPartItem] of string;
-
   ICoordToStringConverter = interface
   ['{0140A97B-47A3-44DE-91D5-9BAA54B34C4C}']
     function GetCoordSysInfo(
@@ -50,20 +35,16 @@ type
     ): string;
 
     function LonLatConvert(
-      const ALonLat: TDoublePoint;
-      const AOptions: TCoordToStringConverterOptions = []
-    ): string;
+      const ALonLat: TDoublePoint
+    ): string; overload;
 
-    function LonLatConvertExt(
-      const ALonLat: TDoublePoint;
-      const AOptions: TCoordToStringConverterOptions = []
-    ): TCoordPartArray; overload;
-
-    function LonLatConvertExt(
-      const ALonLat: TDoublePoint;
-      const ACoordSysType: TCoordSysType;
-      const AOptions: TCoordToStringConverterOptions = []
-    ): TCoordPartArray; overload;
+    procedure LonLatConvert(
+      const ALon: Double;
+      const ALat: Double;
+      const ACutZero: Boolean;
+      out ALonStr: string;
+      out ALatStr: string
+    ); overload;
   end;
 
   ICoordToStringConverterChangeable = interface(IChangeable)

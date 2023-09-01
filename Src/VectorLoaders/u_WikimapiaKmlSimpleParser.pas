@@ -108,12 +108,13 @@ implementation
 
 uses
   Math,
+  ALString,
   cUnicodeCodecs,
   i_GeometryLonLat,
   i_Appearance,
   u_StreamReadOnlyByBinaryData,
   u_DoublePointsAggregator,
-  u_AnsiStr,
+  u_StrFunc,
   u_GeoFunc;
 
 { TWikimapiaKmlSimpleParser }
@@ -278,9 +279,9 @@ function TWikimapiaKmlSimpleParser.parseName(Name: AnsiString): string;
 var
   pb: integer;
 begin
-  pb := PosA('<![CDATA[', Name, 1);
+  pb := ALPosEx('<![CDATA[', Name, 1);
   if pb > 0 then begin
-    Name := Copy(Name, pb + 9, PosA(']]>', Name, 1) - (pb + 9));
+    Name := Copy(Name, pb + 9, ALPosEx(']]>', Name, 1) - (pb + 9));
   end;
   Result := Utf8ToAnsi(Name);
 end;
@@ -290,21 +291,21 @@ var
   pb: integer;
   iip: integer;
 begin
-  pb := PosA('<![CDATA[', Description, 1);
+  pb := ALPosEx('<![CDATA[', Description, 1);
   if pb > 0 then begin
-    Description := Copy(Description, pb + 9, PosA(']]>', Description, 1) - (pb + 9));
+    Description := Copy(Description, pb + 9, ALPosEx(']]>', Description, 1) - (pb + 9));
   end;
-  iip := PosA('&lt;', Description, 1);
+  iip := ALPosEx('&lt;', Description, 1);
   while iip > 0 do begin
     Description[iip] := '<';
     Delete(Description, iip + 1, 3);
-    iip := PosA('&lt;', Description, iip);
+    iip := ALPosEx('&lt;', Description, iip);
   end;
-  iip := PosA('&gt;', Description, 1);
+  iip := ALPosEx('&gt;', Description, 1);
   while iip > 0 do begin
     Description[iip] := '>';
     Delete(Description, iip + 1, 3);
-    iip := PosA('&gt;', Description, iip);
+    iip := ALPosEx('&gt;', Description, iip);
   end;
   Result := Utf8ToAnsi(Description);
 end;

@@ -93,6 +93,7 @@ implementation
 
 uses
   Math,
+  ALString,
   ALSqlite3Wrapper,
   c_CoordConverter,
   t_GeoTypes,
@@ -101,7 +102,6 @@ uses
   i_Projection,
   i_Bitmap32Static,
   i_TileRect,
-  u_AnsiStr,
   u_TileRect,
   u_TileIteratorByRect,
   u_TileIteratorByPolygon,
@@ -450,7 +450,7 @@ begin
   Y := ATile.Y - FBasePoint.Y;
 
   FSQLite3DB.ExecSQLWithBLOB(
-    FormatA(INSERT_SQL, [X, Y, AZoom]),
+    ALFormat(INSERT_SQL, [X, Y, AZoom]),
     AData.Buffer,
     AData.Size
   );

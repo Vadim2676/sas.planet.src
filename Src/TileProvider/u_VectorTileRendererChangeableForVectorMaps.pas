@@ -30,7 +30,6 @@ uses
   i_GeometryProjectedProvider,
   i_MarkerProviderByAppearancePointIcon,
   i_BitmapMarker,
-  i_MarkerDrawable,
   i_ListenerNotifierLinksList,
   i_VectorTileRenderer,
   i_VectorTileRendererChangeable,
@@ -41,8 +40,7 @@ type
   private
     FConfig: IVectorItemDrawConfig;
     FBitmap32StaticFactory: IBitmap32StaticFactory;
-    FPointBitmapMarker: IBitmapMarker;
-    FPointMarkerDrawable: IMarkerDrawableChangeable;
+    FPointMarker: IBitmapMarker;
     FProjectedProvider: IGeometryProjectedProvider;
     FMarkerIconProvider: IMarkerProviderByAppearancePointIcon;
 
@@ -54,8 +52,7 @@ type
   public
     constructor Create(
       const AConfig: IVectorItemDrawConfig;
-      const APointBitmapMarker: IBitmapMarker;
-      const APointMarkerDrawable: IMarkerDrawableChangeable;
+      const APointMarker: IBitmapMarker;
       const ABitmap32StaticFactory: IBitmap32StaticFactory;
       const AProjectedProvider: IGeometryProjectedProvider;
       const AMarkerIconProvider: IMarkerProviderByAppearancePointIcon
@@ -73,22 +70,20 @@ uses
 
 constructor TVectorTileRendererChangeableForVectorMaps.Create(
   const AConfig: IVectorItemDrawConfig;
-  const APointBitmapMarker: IBitmapMarker;
-  const APointMarkerDrawable: IMarkerDrawableChangeable;
+  const APointMarker: IBitmapMarker;
   const ABitmap32StaticFactory: IBitmap32StaticFactory;
   const AProjectedProvider: IGeometryProjectedProvider;
   const AMarkerIconProvider: IMarkerProviderByAppearancePointIcon
 );
 begin
   Assert(Assigned(AConfig));
-  Assert(Assigned(APointBitmapMarker) or Assigned(APointMarkerDrawable));
+  Assert(Assigned(APointMarker));
   Assert(Assigned(ABitmap32StaticFactory));
   Assert(Assigned(AProjectedProvider));
   Assert(Assigned(AMarkerIconProvider));
   inherited Create;
   FConfig := AConfig;
-  FPointBitmapMarker := APointBitmapMarker;
-  FPointMarkerDrawable := APointMarkerDrawable;
+  FPointMarker := APointMarker;
   FBitmap32StaticFactory := ABitmap32StaticFactory;
   FProjectedProvider := AProjectedProvider;
   FMarkerIconProvider := AMarkerIconProvider;
@@ -125,8 +120,7 @@ begin
     TVectorTileRenderer.Create(
       VConfig.MainColor,
       VConfig.ShadowColor,
-      FPointBitmapMarker,
-      FPointMarkerDrawable,
+      FPointMarker,
       FBitmap32StaticFactory,
       FProjectedProvider,
       FMarkerIconProvider

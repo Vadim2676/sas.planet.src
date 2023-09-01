@@ -303,28 +303,28 @@ object frmSettings: TfrmSettings
           TabOrder = 3
         end
         object flwpnlDownloadTimeOut: TFlowPanel
+          AlignWithMargins = True
           Left = 3
-          Top = 291
+          Top = 294
           Width = 632
-          Height = 28
+          Height = 22
           Margins.Left = 0
           Margins.Right = 0
           Align = alTop
           AutoSize = True
           BevelOuter = bvNone
-          BorderWidth = 3
-          TabOrder = 6
+          TabOrder = 5
           object Label32: TLabel
             AlignWithMargins = True
-            Left = 6
-            Top = 6
+            Left = 3
+            Top = 3
             Width = 153
             Height = 13
             Caption = 'Network operations timeout, ms'
           end
           object SETimeOut: TSpinEdit
-            Left = 162
-            Top = 3
+            Left = 159
+            Top = 0
             Width = 73
             Height = 22
             MaxValue = 0
@@ -489,29 +489,28 @@ object frmSettings: TfrmSettings
           end
         end
         object flwpnl1: TFlowPanel
+          AlignWithMargins = True
           Left = 3
-          Top = 319
+          Top = 322
           Width = 632
-          Height = 28
+          Height = 22
           Margins.Left = 0
           Margins.Right = 0
-          Margins.Bottom = 5
           Align = alTop
           AutoSize = True
           BevelOuter = bvNone
-          BorderWidth = 3
-          TabOrder = 7
+          TabOrder = 6
           object lbl1: TLabel
             AlignWithMargins = True
-            Left = 6
-            Top = 6
+            Left = 3
+            Top = 3
             Width = 144
             Height = 13
             Caption = 'Sleep on reset connection, ms'
           end
           object seSleepOnResetConnection: TSpinEdit
-            Left = 153
-            Top = 3
+            Left = 150
+            Top = 0
             Width = 73
             Height = 22
             MaxValue = 0
@@ -522,35 +521,38 @@ object frmSettings: TfrmSettings
         end
         object pnl1: TPanel
           AlignWithMargins = True
-          Left = 6
+          Left = 3
           Top = 378
-          Width = 626
+          Width = 629
           Height = 23
+          Margins.Left = 0
           Align = alTop
           BevelOuter = bvNone
-          TabOrder = 9
+          TabOrder = 8
           object lbl2: TLabel
             AlignWithMargins = True
             Left = 3
             Top = 3
             Width = 59
-            Height = 20
+            Height = 17
             Align = alLeft
             Caption = 'User-Agent:'
+            ExplicitHeight = 13
           end
           object edtUserAgent: TEdit
             AlignWithMargins = True
             Left = 68
             Top = 0
-            Width = 534
+            Width = 537
             Height = 23
             Margins.Top = 0
             Margins.Bottom = 0
             Align = alClient
             TabOrder = 0
+            ExplicitHeight = 21
           end
           object btnResetUserAgentString: TButton
-            Left = 605
+            Left = 608
             Top = 0
             Width = 21
             Height = 23
@@ -561,28 +563,28 @@ object frmSettings: TfrmSettings
           end
         end
         object flwpnlMaxConnsPerServer: TFlowPanel
+          AlignWithMargins = True
           Left = 3
-          Top = 347
+          Top = 350
           Width = 632
-          Height = 28
+          Height = 22
           Margins.Left = 0
           Margins.Right = 0
           Align = alTop
           AutoSize = True
           BevelOuter = bvNone
-          BorderWidth = 3
-          TabOrder = 8
+          TabOrder = 7
           object lblMaxConnsPerServer: TLabel
             AlignWithMargins = True
-            Left = 6
-            Top = 6
+            Left = 3
+            Top = 3
             Width = 250
             Height = 13
             Caption = 'Max number of simultaneous connections per server'
           end
           object seMaxConnsPerServer: TSpinEdit
-            Left = 259
-            Top = 3
+            Left = 256
+            Top = 0
             Width = 73
             Height = 22
             MaxValue = 0
@@ -729,19 +731,11 @@ object frmSettings: TfrmSettings
               Style = csDropDownList
               ItemHeight = 13
               ItemIndex = 0
-              DropDownCount = 10
               TabOrder = 0
+              Text = '12 km 423 m'
               Items.Strings = (
-                '123 km 123 m'
-                '123.12 km'
-                'Kilometers'
-                'Meters'
-                'Centimeters'
-                'Miles'
-                'Yards'
-                'Feet'
-                'Inches'
-                'Nautical Miles')
+                '12 km 423 m'
+                '23.4 km')
             end
           end
           object pnlLonLatFormat: TPanel
@@ -764,7 +758,7 @@ object frmSettings: TfrmSettings
               Layout = tlCenter
               ExplicitHeight = 13
             end
-            object cbbCoordRepresentation: TComboBox
+            object CB_llstrType: TComboBox
               AlignWithMargins = True
               Left = 3
               Top = 21
@@ -776,7 +770,6 @@ object frmSettings: TfrmSettings
               Style = csDropDownList
               ItemHeight = 13
               TabOrder = 0
-              OnChange = cbbCoordRepresentationChange
             end
           end
           object pnlLang: TPanel
@@ -1035,18 +1028,13 @@ object frmSettings: TfrmSettings
               Style = csDropDownList
               ItemHeight = 13
               ItemIndex = 0
-              DropDownCount = 9
               TabOrder = 0
+              Text = 'Auto'
               Items.Strings = (
                 'Auto'
-                'Square Meters'
-                'Square Kilometers'
-                'Hectares'
-                'Square Feet'
-                'Square Yards'
-                'Square Miles'
-                'Square Nautical Miles'
-                'Acres')
+                '2066339 m2'
+                '2,07 km2'
+                '206,63 ha')
             end
           end
           object pnlCoordSys: TPanel
@@ -1078,8 +1066,13 @@ object frmSettings: TfrmSettings
               Align = alClient
               Style = csDropDownList
               ItemHeight = 13
+              ItemIndex = 0
               TabOrder = 0
-              OnChange = cbbCoordSysTypeChange
+              Text = 'Geographic / WGS84'
+              Items.Strings = (
+                'Geographic / WGS84'
+                'Geographic / S-42 (Pulkovo 1942)'
+                'Gauss Krueger (6 degree zones) / S-42 ')
             end
           end
           object pnlCoordSysInfoType: TPanel
@@ -1113,10 +1106,10 @@ object frmSettings: TfrmSettings
               ItemHeight = 13
               ItemIndex = 1
               TabOrder = 0
-              Text = 'Don'#39't show for WGS 84'
+              Text = 'Don'#39't show for Geographic / WGS84'
               Items.Strings = (
                 'Don'#39't show for All'
-                'Don'#39't show for WGS 84'
+                'Don'#39't show for Geographic / WGS84'
                 'Show for All')
             end
           end
@@ -1586,16 +1579,6 @@ object frmSettings: TfrmSettings
             ExplicitTop = 460
             ExplicitWidth = 314
           end
-          object chkAddTimeToMarkDescription: TCheckBox
-            AlignWithMargins = True
-            Left = 6
-            Top = 440
-            Width = 308
-            Height = 17
-            Align = alTop
-            Caption = 'Insert timestamp into placemark description'
-            TabOrder = 11
-          end
         end
       end
     end
@@ -1950,19 +1933,19 @@ object frmSettings: TfrmSettings
       end
     end
     object tsWiki: TTabSheet
-      Caption = 'Vector Layer'
+      Caption = 'Wikimapia'
       ImageIndex = 7
       object grdpnlWiki: TGridPanel
         Left = 0
         Top = 0
         Width = 644
-        Height = 129
+        Height = 57
         Align = alTop
         BevelOuter = bvNone
         ColumnCollection = <
           item
             SizeStyle = ssAbsolute
-            Value = 200.000000000000000000
+            Value = 150.000000000000000000
           end
           item
             Value = 100.000000000000000000
@@ -1980,169 +1963,60 @@ object frmSettings: TfrmSettings
           end
           item
             Column = 0
-            Control = lblWikiShadowColor
+            Control = lblWikiBgColor
             Row = 1
           end
           item
             Column = 1
-            Control = CBWShadowColor
+            Control = CBWFonColor
             Row = 1
-          end
-          item
-            Column = 0
-            Control = lblWikiFillColor
-            Row = 2
-          end
-          item
-            Column = 1
-            Control = CBWFillColor
-            Row = 2
-          end
-          item
-            Column = 0
-            Control = lblWikiBorderColor
-            Row = 3
-          end
-          item
-            Column = 1
-            Control = CBWBorderColor
-            Row = 3
-          end
-          item
-            Column = 0
-            Control = lblWikiMarkerSize
-            Row = 4
-          end
-          item
-            Column = 1
-            Control = seWikiMarkerSize
-            Row = 4
           end>
         RowCollection = <
           item
-            SizeStyle = ssAbsolute
-            Value = 25.000000000000000000
+            Value = 50.000000000000000000
           end
           item
-            SizeStyle = ssAbsolute
-            Value = 25.000000000000000000
-          end
-          item
-            SizeStyle = ssAbsolute
-            Value = 25.000000000000000000
-          end
-          item
-            SizeStyle = ssAbsolute
-            Value = 25.000000000000000000
-          end
-          item
-            SizeStyle = ssAbsolute
-            Value = 25.000000000000000000
+            Value = 50.000000000000000000
           end>
         TabOrder = 0
         DesignSize = (
           644
-          129)
+          57)
         object lblWikiMainColor: TLabel
-          AlignWithMargins = True
-          Left = 3
-          Top = 5
-          Width = 194
-          Height = 17
-          Margins.Top = 5
-          Margins.Bottom = 3
-          Align = alClient
+          Left = 44
+          Top = 7
+          Width = 62
+          Height = 13
+          Anchors = []
           Caption = 'Primary color'
         end
         object CBWMainColor: TColorBox
-          Left = 200
-          Top = 1
+          Left = 150
+          Top = 3
           Width = 159
           Height = 22
           Style = [cbStandardColors, cbExtendedColors, cbCustomColor, cbPrettyNames]
           Anchors = [akLeft, akTop, akBottom]
+          ItemHeight = 16
           TabOrder = 0
         end
-        object lblWikiShadowColor: TLabel
-          AlignWithMargins = True
-          Left = 3
-          Top = 30
-          Width = 194
-          Height = 17
-          Margins.Top = 5
-          Margins.Bottom = 3
-          Align = alClient
-          Caption = 'Shadow color'
+        object lblWikiBgColor: TLabel
+          Left = 46
+          Top = 36
+          Width = 58
+          Height = 13
+          Anchors = []
+          Caption = 'Border color'
         end
-        object CBWShadowColor: TColorBox
-          Left = 200
-          Top = 26
+        object CBWFonColor: TColorBox
+          Left = 150
+          Top = 31
           Width = 159
           Height = 22
           Style = [cbStandardColors, cbExtendedColors, cbCustomColor, cbPrettyNames]
           Anchors = [akLeft, akTop, akBottom]
+          ItemHeight = 16
           TabOrder = 1
-        end
-        object lblWikiFillColor: TLabel
-          AlignWithMargins = True
-          Left = 3
-          Top = 55
-          Width = 194
-          Height = 17
-          Margins.Top = 5
-          Margins.Bottom = 3
-          Align = alClient
-          Caption = 'Marker fill color'
-        end
-        object CBWFillColor: TColorBox
-          Left = 200
-          Top = 51
-          Width = 159
-          Height = 22
-          Style = [cbStandardColors, cbExtendedColors, cbCustomColor, cbPrettyNames]
-          Anchors = [akLeft, akTop, akBottom]
-          TabOrder = 2
-        end
-        object lblWikiBorderColor: TLabel
-          AlignWithMargins = True
-          Left = 3
-          Top = 80
-          Width = 194
-          Height = 17
-          Margins.Top = 5
-          Margins.Bottom = 3
-          Align = alClient
-          Caption = 'Marker border color'
-        end
-        object CBWBorderColor: TColorBox
-          Left = 200
-          Top = 76
-          Width = 159
-          Height = 22
-          Style = [cbStandardColors, cbExtendedColors, cbCustomColor, cbPrettyNames]
-          Anchors = [akLeft, akTop, akBottom]
-          TabOrder = 3
-        end
-        object lblWikiMarkerSize: TLabel
-          AlignWithMargins = True
-          Left = 3
-          Top = 105
-          Width = 194
-          Height = 17
-          Margins.Top = 5
-          Margins.Bottom = 3
-          Align = alClient
-          Caption = 'Marker size'
-        end
-        object seWikiMarkerSize: TSpinEdit
-          Left = 200
-          Top = 100
-          Width = 159
-          Height = 22
-          MaxValue = 0
-          MinValue = 0
-          TabOrder = 4
-          Value = 0
         end
       end
     end
@@ -2218,6 +2092,16 @@ object frmSettings: TfrmSettings
         BevelEdges = []
         BevelOuter = bvNone
         TabOrder = 2
+      end
+      object pnlMapSvcScan: TPanel
+        Left = 0
+        Top = 224
+        Width = 644
+        Height = 28
+        Align = alTop
+        BevelEdges = []
+        BevelOuter = bvNone
+        TabOrder = 8
       end
       object pnlBaseCahcePath: TPanel
         Left = 0

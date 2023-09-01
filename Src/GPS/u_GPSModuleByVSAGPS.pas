@@ -34,7 +34,7 @@ uses
   i_GPSConfig,
   i_SystemTimeProvider,
   i_Listener,
-  u_AnsiStr,
+  u_StrFunc,
   u_GeoFunc,
   u_GPSModuleAbstract,
 {$if defined(VSAGPS_AS_DLL)}
@@ -185,7 +185,11 @@ uses
   DateUtils,
   Math,
   Classes,
+  ALString,
   vsagps_public_sysutils,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   t_GeoTypes,
   u_ResStrings,
   u_ListenerByEvent;
@@ -603,7 +607,7 @@ begin
 
     if (gpsoNMEA = VGPSOrigin) then begin
       // COM for NMEA
-      VGPSPortName := 'COM' + IntToStrA(AConfig.Port);
+      VGPSPortName := 'COM' + ALIntToStr(AConfig.Port);
 {$if defined(VSAGPS_AS_DLL)}
       VGPSPortName := VGPSPortName + #0;
       VszGPSPortName := PAnsiChar(VGPSPortName);
@@ -1708,7 +1712,7 @@ begin
     VSourceTalkerID := NMEA_TalkerID_to_String(@(pGSA^.chCorrectedTalkerID));
 
     // if QZSS - skip (no data)
-    if SameTextA(VSourceTalkerID, nmea_ti_QZSS) then
+    if ALSameText(VSourceTalkerID, nmea_ti_QZSS) then
       Exit;
 
     // if no corrected talker_id - skip data

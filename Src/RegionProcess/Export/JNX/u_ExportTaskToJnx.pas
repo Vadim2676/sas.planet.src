@@ -74,6 +74,10 @@ uses
   SysUtils,
   Dialogs,
   UITypes,
+  {$IF CompilerVersion < 20}
+  Controls, // for mrYes
+  {$IFEND}
+  ALString,
   JNXlib,
   i_TileStorage,
   i_TileInfoBasic,
@@ -85,7 +89,6 @@ uses
   i_BinaryData,
   i_MapVersionRequest,
   i_BitmapTileSaveLoad,
-  u_AnsiStr,
   u_ResStrings;
 
 constructor TExportTaskToJnx.Create(
@@ -135,7 +138,7 @@ var
   VTileIterator: ITileIterator;
   VSaver: IBitmapTileSaver;
   VProjectionSet: IProjectionSet;
-  VStringStream: TStringStreamA;
+  VStringStream: TALStringStream;
   VWriter: TMultiVolumeJNXWriter;
   VTileBounds: TJNXRect;
   VTopLeft: TDoublePoint;
@@ -187,7 +190,7 @@ begin
 
     ProgressInfo.SetCaption(SAS_STR_ExportTiles);
     ProgressInfo.SetFirstLine(SAS_STR_AllSaves + ' ' + IntToStr(VTilesToProcess) + ' ' + SAS_STR_Files);
-    VStringStream := TStringStreamA.Create('');
+    VStringStream := TALStringStream.Create('');
     try
       VTilesProcessed := 0;
       ProgressFormUpdateOnProgress(VTilesProcessed, VTilesToProcess);
@@ -209,7 +212,7 @@ begin
 
             if Supports(VTileStorage.GetTileInfoEx(VTile, VZoom, VVersion, gtimWithData), ITileInfoWithData, VTileInfo) then begin
               VData := nil;
-              if VRecompress or not SameTextA(VTileInfo.ContentType.GetContentType, 'image/jpg') then begin
+              if VRecompress or not ALSameText(VTileInfo.ContentType.GetContentType, 'image/jpg') then begin
                 if Supports(VTileInfo.ContentType, IContentTypeInfoBitmap, VContentTypeInfoBitmap) then begin
                   try
                     VBitmapTile := VContentTypeInfoBitmap.GetLoader.Load(VTileInfo.TileData);

@@ -159,24 +159,6 @@ object frElevationProfile: TfrElevationProfile
       Caption = 'Show Elevation'
       OnClick = mniShowElevationClick
     end
-    object mniN3: TMenuItem
-      Caption = '-'
-    end
-    object mniElevationSource: TMenuItem
-      Caption = 'Elevation Source'
-      object mniTrackData: TMenuItem
-        Caption = 'GPS Data'
-        GroupIndex = 1
-        RadioItem = True
-        OnClick = mniTrackDataClick
-      end
-      object mniDEMData: TMenuItem
-        Caption = 'DEM Data'
-        GroupIndex = 1
-        RadioItem = True
-        OnClick = mniDEMDataClick
-      end
-    end
     object N1: TMenuItem
       Caption = '-'
     end

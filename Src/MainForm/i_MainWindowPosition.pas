@@ -46,9 +46,6 @@ type
     procedure SetNotMinimized;
     property IsMinimized: Boolean read GetIsMinimized;
 
-    function GetIsBordersVisible: Boolean;
-    procedure ToggleBordersVisible;
-
     function GetBoundsRect: TRect;
     property BoundsRect: TRect read GetBoundsRect;
     procedure SetWindowPosition(const ARect: TRect);

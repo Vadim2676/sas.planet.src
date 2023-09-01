@@ -49,7 +49,7 @@ implementation
 uses
   RegExpr,
   SysUtils,
-  u_AnsiStr;
+  ALString;
 
 const
   c_MA_Expr = '^(.+\\)?(\d\d?)\\(\d+)\\(\d+)(\..+)?$';
@@ -80,9 +80,9 @@ begin
   try
     VRegExpr.Expression := c_MA_Expr;
     if VRegExpr.Exec(ATileFileName) then begin
-      ATileZoom := StrToIntA(VRegExpr.Match[2]);
-      ATileXY.X := StrToIntA(VRegExpr.Match[3]); // (!) X - first, Y - last
-      ATileXY.Y := StrToIntA(VRegExpr.Match[4]);
+      ATileZoom := ALStrToInt(VRegExpr.Match[2]);
+      ATileXY.X := ALStrToInt(VRegExpr.Match[3]); // (!) X - first, Y - last
+      ATileXY.Y := ALStrToInt(VRegExpr.Match[4]);
       Result := True;
     end else begin
       Result := False;

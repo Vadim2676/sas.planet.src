@@ -13,14 +13,6 @@ type
 
 function EnumWindows(lpEnumFunc: TFNWndEnumProc; lParam: LPARAM): BOOL; stdcall; external  user32;
 
-{$IFNDEF UNICODE}
-type
-  PDWORD_PTR = ^DWORD_PTR;
-{$ENDIF}
-
-function SendMessageTimeoutW(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM;
-  fuFlags, uTimeout: UINT; lpdwResult: PDWORD_PTR): LRESULT; stdcall; external user32;
-
 var
   GWindowsCount: Int64 = 0;
 
@@ -29,7 +21,7 @@ const
 
 function EnumWindowsProc(hWnd: HWND; lParam: LPARAM): BOOL; stdcall;
 var
-  VOutVal: DWORD_PTR;
+  VOutVal: DWORD;
   VRetVal: LRESULT;
 begin
   Inc(GWindowsCount);
@@ -37,14 +29,14 @@ begin
   Write(Format('[%d] Send message to 0x%s: ', [GWindowsCount, IntToHex(hWnd, 8)]));
 
   VRetVal :=
-    SendMessageTimeoutW(
+    SendMessageTimeout(
       hWnd,
       WM_IFF,
       0,
       0,
       SMTO_BLOCK or SMTO_ABORTIFHUNG,
       200,
-      @VOutVal
+      VOutVal
     );
 
   if VRetVal <> 0 then begin
@@ -105,7 +97,7 @@ end;
 
 var
   I: Integer;
-  VArgStr: string;
+  VArgStr: AnsiString;
 begin
   try
     VArgStr := '';
@@ -123,7 +115,7 @@ begin
     end;
 
     if VArgStr <> '' then begin
-      SendArgs(AnsiString(VArgStr));
+      SendArgs(VArgStr);
     end else begin
       Writeln(u_CmdLineArgProcessorAPI.GetHelp(ExtractFileName(ParamStr(0))));
       Exit;

@@ -43,7 +43,6 @@ type
   private
     function _FillPrepareCategoryCache: Integer;
     function _FillPrepareCategoryViewCache: Integer;
-    procedure SetReadOnly(const AValue: Boolean);
   public
     function DeleteCategorySQL(
       const ACategoryID: TID
@@ -76,7 +75,7 @@ type
     );
     destructor Destroy; override;
   public
-    property IsReadOnly: Boolean read FIsReadOnly write SetReadOnly;
+    property IsReadOnly: Boolean read FIsReadOnly write FIsReadOnly;
   end;
 
 implementation
@@ -247,7 +246,6 @@ begin
     // update view
     VSQLCategoryView := TSQLCategoryView.Create;
     try
-      VSQLCategoryView.IDValue := 0;
       VFound := FCache.FCategoryViewCache.Find(ACategoryRecNew.FCategoryId, VItem);
       if VFound then begin
         // init from cache
@@ -291,7 +289,7 @@ begin
         end;
       end;
       // update cache
-      ACategoryRecNew.FViewId := VSQLCategoryView.ID; // can be zero
+      ACategoryRecNew.FViewId := VSQLCategoryView.ID;
       FCache.FCategoryViewCache.AddOrUpdate(ACategoryRecNew);
       Result := True;
     finally
@@ -571,7 +569,7 @@ begin
               CheckID( FClient.Add(VSQLCategoryView, True) );
               VRec.FViewId := VSQLCategoryView.ID;
             end else begin
-              VRec.FViewId := 0; // fake id
+              VRec.FViewId := 0;
             end;
             // add to cache
             VViewCache.AddOrUpdate(VRec);
@@ -623,16 +621,6 @@ begin
     end;
   end;
   Result := VCount;
-end;
-
-procedure TMarkCategoryDbImplORMHelper.SetReadOnly(const AValue: Boolean);
-begin
-  if FIsReadOnly <> AValue then begin
-    if FIsReadOnly then begin
-      FCache.FCategoryViewCache.Reset; // remove possible fake id's
-    end;
-    FIsReadOnly := AValue;
-  end;
 end;
 
 end.

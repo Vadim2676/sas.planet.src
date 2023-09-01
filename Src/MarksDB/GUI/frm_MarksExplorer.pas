@@ -147,11 +147,6 @@ type
     tbitmCopyAsText: TTBXItem;
     TBXSeparatorItem5: TTBXSeparatorItem;
     tbxShowElevProfile: TTBXItem;
-    TBXSeparatorItem6: TTBXSeparatorItem;
-    tbxSelectAllVisible: TTBXItem;
-    tbxRevertSelection: TTBXItem;
-    TBXSeparatorItem7: TTBXSeparatorItem;
-    tbitmEditMarkPosition: TTBXItem;
     procedure BtnAddCategoryClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure BtnDelKatClick(Sender: TObject);
@@ -240,9 +235,6 @@ type
     procedure tbitmCopyAsTextClick(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: Char);
     procedure tbxShowElevProfileClick(Sender: TObject);
-    procedure tbxSelectAllVisibleClick(Sender: TObject);
-    procedure tbxRevertSelectionClick(Sender: TObject);
-    procedure tbitmEditMarkPositionClick(Sender: TObject);
   private
     type
       TCopyPasteAction = (cpNone, cpCopy, cpCut);
@@ -295,8 +287,6 @@ type
     function GetSelectedMarkId: IMarkId;
     function GetSelectedMarkFull: IVectorDataItem;
     function GetSelectedMarksIdList: IInterfaceListStatic;
-    function GetSelectedMarksIdArray: TArrayOfMarkId;
-
     procedure WMGetMinMaxInfo(var Msg: TWMGetMinMaxInfo); message WM_GETMINMAXINFO;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
@@ -379,7 +369,7 @@ begin
   FRegionProcess := ARegionProcess;
   FElevationProfilePresenter := AElevationProfilePresenter;
 
-  MarksListBox.MultiSelect := True;
+  MarksListBox.MultiSelect := true;
   FMarkSystemConfigListener := TNotifyNoMmgEventListener.Create(Self.OnMarkSystemConfigChange);
   FCategoryDBListener := TNotifyNoMmgEventListener.Create(Self.OnCategoryDbChanged);
   FMarksDBListener := TNotifyNoMmgEventListener.Create(Self.OnMarksDbChanged);
@@ -659,16 +649,6 @@ begin
   end;
 end;
 
-function TfrmMarksExplorer.GetSelectedMarksIdArray: TArrayOfMarkId;
-var
-  I: Integer;
-begin
-  SetLength(Result, MarksListBox.SelectionCount);
-  for I := 0 to MarksListBox.SelectionCount - 1 do begin
-    Result[I] := IMarkId(MarksListBox.Selections[I].Data);
-  end;
-end;
-
 function TfrmMarksExplorer.GetSelectedMarkId: IMarkId;
 var
   VNode: TTreeNode;
@@ -799,17 +779,6 @@ begin
         end;
       end;
     end;
-  end;
-end;
-
-procedure TfrmMarksExplorer.tbitmEditMarkPositionClick(Sender: TObject);
-var
-  VMark: IVectorDataItem;
-begin
-  VMark := GetSelectedMarkFull;
-  if Assigned(VMark) and Assigned(VMark.Geometry.Bounds) then begin
-    FMapGoto.FitRectToScreen(VMark.Geometry.Bounds.Rect);
-    FMarkDBGUI.EditMarkPosition(VMark);
   end;
 end;
 
@@ -1495,109 +1464,32 @@ begin
 end;
 
 procedure TfrmMarksExplorer.tbpmnMarksPopup(Sender: TObject);
-type
-  TMarksCountId = (mcTotal, mcLine, mcMultiLine, mcPoly, mcMultiPoly);
 var
-  I: Integer;
-  VMarkIdArray: TArrayOfMarkId;
-  VCount: array [TMarksCountId] of Integer;
   VMark: IVectorDataItem;
-  VGeometry: IGeometryLonLat;
   VLine: IGeometryLonLatMultiLine;
   VPolygon: IGeometryLonLatMultiPolygon;
+  VUngroupVisible: Boolean;
+  VElevationProfileVisible: Boolean;
+  VSelection: IInterfaceListStatic;
 begin
-  FillChar(VCount, Length(VCount) * SizeOf(VCount[mcTotal]), 0);
+  VUngroupVisible := False;
+  VElevationProfileVisible := False;
 
-  VMarkIdArray := GetSelectedMarksIdArray;
-
-  for I := 0 to Length(VMarkIdArray) - 1 do begin
-    if not Assigned(VMarkIdArray[I]) then begin
-      Continue;
-    end;
-
-    VMark := FMarkDBGUI.MarksDb.MarkDb.GetMarkByID(VMarkIdArray[I]);
-    if not Assigned(VMark) then begin
-      Continue;
-    end;
-
-    Inc(VCount[mcTotal]);
-
-    VGeometry := VMark.Geometry;
-    if Supports(VGeometry, IGeometryLonLatSinglePolygon) then begin
-      Inc(VCount[mcPoly]);
-    end else
-    if Supports(VGeometry, IGeometryLonLatMultiPolygon, VPolygon) then begin
-      if VPolygon.Count = 1 then begin
-        Inc(VCount[mcPoly]);
-      end else begin
-        Inc(VCount[mcMultiPoly]);
+  VSelection := GetSelectedMarksIdList;
+  if Assigned(VSelection) and (VSelection.Count = 1) then begin
+    VMark := GetSelectedMarkFull;
+    if Assigned(VMark) then begin
+      if Supports(VMark.Geometry, IGeometryLonLatMultiPolygon, VPolygon) then begin
+        VUngroupVisible := (VPolygon.Count > 1);
+      end else if Supports(VMark.Geometry, IGeometryLonLatMultiLine, VLine) then begin
+        VUngroupVisible := (VLine.Count > 1);
       end;
-    end else
-    if Supports(VMark.Geometry, IGeometryLonLatSingleLine) then begin
-      Inc(VCount[mcLine]);
-    end else
-    if Supports(VMark.Geometry, IGeometryLonLatMultiLine, VLine) then begin
-      if VLine.Count = 1 then begin
-        Inc(VCount[mcLine]);
-      end else begin
-        Inc(VCount[mcMultiLine]);
-      end;
-    end else begin
-      Dec(VCount[mcTotal]);
+      VElevationProfileVisible := Supports(VMark.Geometry, IGeometryLonLatLine);
     end;
   end;
 
-  tbxtmUngroup.Visible :=
-    (VCount[mcTotal] = 1) and
-    ((VCount[mcMultiPoly] = 1) or (VCount[mcMultiLine] = 1));
-
-  tbxShowElevProfile.Visible :=
-    (VCount[mcTotal] = 1) and
-    ((VCount[mcLine] = 1) or (VCount[mcMultiLine] = 1));
-
-  tbxtmAddToMergePolygons.Visible :=
-    (VCount[mcPoly] > 0) or
-    (VCount[mcMultiPoly] > 0);
-end;
-
-procedure TfrmMarksExplorer.tbxSelectAllVisibleClick(Sender: TObject);
-var
-  I: Integer;
-  VList: TList;
-  VNode: TTreeNode;
-begin
-  VList := TList.Create;
-  try
-    for I := 0 to MarksListBox.Items.Count - 1 do begin
-      VNode := MarksListBox.Items[I];
-      if VNode.StateIndex = 1 then begin
-        VList.Add(VNode);
-      end;
-    end;
-    MarksListBox.Select(VList);
-  finally
-    VList.Free;
-  end;
-end;
-
-procedure TfrmMarksExplorer.tbxRevertSelectionClick(Sender: TObject);
-var
-  I: Integer;
-  VList: TList;
-  VNode: TTreeNode;
-begin
-  VList := TList.Create;
-  try
-    for I := 0 to MarksListBox.Items.Count - 1 do begin
-      VNode := MarksListBox.Items[I];
-      if not VNode.Selected then begin
-        VList.Add(VNode);
-      end;
-    end;
-    MarksListBox.Select(VList);
-  finally
-    VList.Free;
-  end;
+  tbxtmUngroup.Visible := VUngroupVisible;
+  tbxShowElevProfile.Visible := VElevationProfileVisible;
 end;
 
 procedure TfrmMarksExplorer.tbxShowElevProfileClick(Sender: TObject);

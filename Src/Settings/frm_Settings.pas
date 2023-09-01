@@ -24,7 +24,6 @@ unit frm_Settings;
 interface
 
 uses
-  Types,
   SysUtils,
   Classes,
   Controls,
@@ -35,7 +34,6 @@ uses
   Dialogs,
   Spin,
   UITypes,
-  Buttons,
   urlmon,
   wininet,
   GR32,
@@ -58,7 +56,7 @@ uses
   fr_GPSConfig,
   fr_PathSelect,
   fr_CacheTypeList,
-  fr_ShortCutList;
+  fr_ShortCutList, Buttons;
 
 type
   TfrmSettings = class(TFormWitghLanguageManager)
@@ -86,17 +84,11 @@ type
     TilesOverScreenEdit: TSpinEdit;
     Label69: TLabel;
     tsWiki: TTabSheet;
-    lblWikiMainColor: TLabel;
-    lblWikiShadowColor: TLabel;
-    lblWikiFillColor: TLabel;
-    lblWikiBorderColor: TLabel;
-    lblWikiMarkerSize: TLabel;
     CBWMainColor: TColorBox;
-    CBWShadowColor: TColorBox;
-    CBWFillColor: TColorBox;
-    CBWBorderColor: TColorBox;
-    seWikiMarkerSize: TSpinEdit;
-    cbbCoordRepresentation: TComboBox;
+    lblWikiMainColor: TLabel;
+    lblWikiBgColor: TLabel;
+    CBWFonColor: TColorBox;
+    CB_llstrType: TComboBox;
     Label84: TLabel;
     CBShowmapname: TCheckBox;
     CBinvertcolor: TCheckBox;
@@ -219,6 +211,7 @@ type
     pnlMarksDbPath: TPanel;
     pnlMarksIconsPath: TPanel;
     pnlMediaDataPath: TPanel;
+    pnlMapSvcScan: TPanel;
     pnlNewCpath: TPanel;
     pnlOldCpath: TPanel;
     pnlEScPath: TPanel;
@@ -268,7 +261,6 @@ type
     pnlMarkCaptionFont: TPanel;
     dlgFont: TFontDialog;
     chkMarksCaptionVisible: TCheckBox;
-    chkAddTimeToMarkDescription: TCheckBox;
     procedure btnCancelClick(Sender: TObject);
     procedure btnApplyClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -286,8 +278,6 @@ type
     procedure rbProxyClick(Sender: TObject);
     procedure cbbNetworkEngineChange(Sender: TObject);
     procedure btnMarkCaptionFontClick(Sender: TObject);
-    procedure cbbCoordSysTypeChange(Sender: TObject);
-    procedure cbbCoordRepresentationChange(Sender: TObject);
   private
     FOnSave: TNotifyEvent;
     FLinksList: IListenerNotifierLinksList;
@@ -306,6 +296,7 @@ type
     FfrMarksIconsPathSelect: TfrPathSelect;
     FfrMarksDbPathSelect: TfrPathSelect;
     FfrMediaDataPathSelect: TfrPathSelect;
+//    FfrMapSvcScanPathSelect: TfrPathSelect;
     FfrBaseCachePathSelect: TfrPathSelect;
 
     FfrNewCachePath: TfrPathSelect;
@@ -326,9 +317,7 @@ type
     FfrGoogleApiKey: TfrGeoCoderApiKey;
     FfrYandexApiKey: TfrGeoCoderApiKey;
 
-    procedure InitCoordSysTypeList;
-    procedure InitCoordShowFormat;
-
+    procedure InitCoordRepresentationList;
     procedure InitResamplersList(
       const AList: IImageResamplerFactoryList;
       ABox: TComboBox
@@ -370,9 +359,8 @@ uses
   t_CoordRepresentation,
   i_WinInetConfig,
   i_MarksDrawConfig,
-  i_CoordRepresentationConfig,
   u_ListenerNotifierLinksList,
-  u_AnsiStr,
+  u_StrFunc,
   u_GlobalState,
   u_CoordRepresentation,
   u_ResStrings;
@@ -492,6 +480,16 @@ begin
       gettext_NoOp('Path to MediaData'),
       GState.Config.MediaDataPath
     );
+
+  // http://www.sasgis.org/mantis/view.php?id=3803
+  pnlMapSvcScan.Visible := False;
+
+//  FfrMapSvcScanPathSelect :=
+//    TfrPathSelect.Create(
+//      ALanguageManager,
+//      gettext_NoOp('Path to map scan DB'),
+//      GState.Config.MapSvcScanConfig.Path
+//    );
 
   FfrBaseCachePathSelect :=
     TfrPathSelect.Create(
@@ -689,7 +687,6 @@ var
   VNeedReboot: Boolean;
   VConnsPerServer: TConnsPerServerRec;
   VMarksCaptionDrawConfig: ICaptionDrawConfig;
-  VCoordRepresentationConfig: ICoordRepresentationConfig;
 begin
   VNeedReboot := False;
 
@@ -735,15 +732,14 @@ begin
 
   GState.CacheConfig.DefCache := FfrCacheTypesList.IntCode;
 
-  VCoordRepresentationConfig := GState.Config.CoordRepresentationConfig;
-  VCoordRepresentationConfig.LockWrite;
+  GState.Config.CoordRepresentationConfig.LockWrite;
   try
-    VCoordRepresentationConfig.IsLatitudeFirst := ChBoxFirstLat.Checked;
-    VCoordRepresentationConfig.CoordSysType := TCoordSysType(cbbCoordSysType.ItemIndex);
-    VCoordRepresentationConfig.CoordSysInfoType := TCoordSysInfoType(cbbCoordSysInfoType.ItemIndex);
-    SetCoordShowFormat(VCoordRepresentationConfig, cbbCoordRepresentation.ItemIndex);
+    GState.Config.CoordRepresentationConfig.IsLatitudeFirst := ChBoxFirstLat.Checked;
+    GState.Config.CoordRepresentationConfig.DegrShowFormat := TDegrShowFormat(CB_llstrType.ItemIndex);
+    GState.Config.CoordRepresentationConfig.CoordSysType := TCoordSysType(cbbCoordSysType.ItemIndex);
+    GState.Config.CoordRepresentationConfig.CoordSysInfoType := TCoordSysInfoType(cbbCoordSysInfoType.ItemIndex);
   finally
-    VCoordRepresentationConfig.UnlockWrite;
+    GState.Config.CoordRepresentationConfig.UnlockWrite;
   end;
 
   GState.Config.ValueToStringConverterConfig.LockWrite;
@@ -855,6 +851,7 @@ begin
   FfrMarksIconsPathSelect.ApplyChanges;
   FfrMarksDbPathSelect.ApplyChanges;
   FfrMediaDataPathSelect.ApplyChanges;
+//  FfrMapSvcScanPathSelect.ApplyChanges;
   FfrBaseCachePathSelect.ApplyChanges;
 
   FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.LockWrite;
@@ -866,28 +863,11 @@ begin
       );
     FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.ShadowColor :=
       SetAlpha(
-        Color32(CBWShadowColor.Selected),
+        Color32(CBWFonColor.Selected),
         AlphaComponent(FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.ShadowColor)
       );
   finally
     FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.UnlockWrite;
-  end;
-
-  FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.LockWrite;
-  try
-    FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.MarkerColor :=
-      SetAlpha(
-        Color32(CBWFillColor.Selected),
-        AlphaComponent(FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.MarkerColor)
-      );
-    FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.BorderColor :=
-      SetAlpha(
-        Color32(CBWBorderColor.Selected),
-        AlphaComponent(FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.BorderColor)
-      );
-    FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.MarkerSize := seWikiMarkerSize.Value;
-  finally
-    FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.UnlockWrite;
   end;
 
   VMarksCaptionDrawConfig := FMainFormConfig.LayersConfig.MarksLayerConfig.MarksDrawConfig.CaptionDrawConfig;
@@ -902,8 +882,6 @@ begin
   finally
     VMarksCaptionDrawConfig.UnlockWrite;
   end;
-
-  GState.Config.MarksGUIConfig.IsAddTimeToDescription := chkAddTimeToMarkDescription.Checked;
 
   GState.Config.LanguageManager.SetCurrentLanguageIndex(CBoxLocal.ItemIndex);
 
@@ -953,6 +931,7 @@ begin
   FreeAndNil(FfrMarksIconsPathSelect);
   FreeAndNil(FfrMarksDbPathSelect);
   FreeAndNil(FfrMediaDataPathSelect);
+//  FreeAndNil(FfrMapSvcScanPathSelect);
   FreeAndNil(FfrBaseCachePathSelect);
 
   FreeAndNil(FfrNewCachePath);
@@ -999,6 +978,7 @@ begin
   FfrMarksIconsPathSelect.Show(pnlMarksIconsPath);
   FfrMarksDbPathSelect.Show(pnlMarksDbPath);
   FfrMediaDataPathSelect.Show(pnlMediaDataPath);
+//  FfrMapSvcScanPathSelect.Show(pnlMapSvcScan);
   FfrBaseCachePathSelect.Show(pnlBaseCahcePath);
 
   FfrNewCachePath.Show(pnlNewCpath);
@@ -1157,12 +1137,14 @@ begin
   InitResamplersList(GState.ImageResamplerFactoryList, cbbResizeTileMatrixDraft);
   cbbResizeTileMatrixDraft.ItemIndex := GState.ImageResamplerFactoryList.GetIndexByGUID(GState.Config.TileMatrixDraftResamplerConfig.ActiveGUID);
 
+  InitCoordRepresentationList;
+
   GState.Config.CoordRepresentationConfig.LockRead;
   try
-    InitCoordSysTypeList;
-    InitCoordShowFormat;
     ChBoxFirstLat.Checked := GState.Config.CoordRepresentationConfig.IsLatitudeFirst;
-    cbbCoordSysInfoType.ItemIndex := Integer(GState.Config.CoordRepresentationConfig.CoordSysInfoType);
+    CB_llstrType.ItemIndex := byte(GState.Config.CoordRepresentationConfig.DegrShowFormat);
+    cbbCoordSysType.ItemIndex := byte(GState.Config.CoordRepresentationConfig.CoordSysType);
+    cbbCoordSysInfoType.ItemIndex := byte(GState.Config.CoordRepresentationConfig.CoordSysInfoType);
   finally
     GState.Config.CoordRepresentationConfig.UnlockRead;
   end;
@@ -1174,22 +1156,12 @@ begin
   finally
     GState.Config.ValueToStringConverterConfig.UnlockRead;
   end;
-
   FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.LockRead;
   try
     CBWMainColor.Selected := WinColor(FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.MainColor);
-    CBWShadowColor.Selected := WinColor(FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.ShadowColor);
+    CBWFonColor.Selected := WinColor(FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.ShadowColor);
   finally
     FMainFormConfig.LayersConfig.KmlLayerConfig.DrawConfig.UnlockRead;
-  end;
-
-  FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.LockRead;
-  try
-    CBWFillColor.Selected := WinColor(FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.MarkerColor);
-    CBWBorderColor.Selected := WinColor(FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.BorderColor);
-    seWikiMarkerSize.Value := FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.MarkerSize;
-  finally
-    FMainFormConfig.LayersConfig.KmlLayerConfig.PointMarkerConfig.UnlockRead;
   end;
 
   TilesOverScreenEdit.Value := FMainFormConfig.DownloadUIConfig.TilesOut;
@@ -1205,8 +1177,6 @@ begin
   finally
     VMarksCaptionDrawConfig.UnlockRead;
   end;
-
-  chkAddTimeToMarkDescription.Checked := GState.Config.MarksGUIConfig.IsAddTimeToDescription;
 
   rbProxyClick(Self);
 end;
@@ -1239,49 +1209,15 @@ begin
   FormShow(Self);
 end;
 
-procedure TfrmSettings.cbbCoordSysTypeChange(Sender: TObject);
-begin
-  GState.Config.CoordRepresentationConfig.CoordSysType := TCoordSysType(cbbCoordSysType.ItemIndex);
-  InitCoordShowFormat;
-end;
-
-procedure TfrmSettings.cbbCoordRepresentationChange(Sender: TObject);
-begin
-  SetCoordShowFormat(GState.Config.CoordRepresentationConfig, cbbCoordRepresentation.ItemIndex);
-end;
-
-procedure TfrmSettings.InitCoordSysTypeList;
+procedure TfrmSettings.InitCoordRepresentationList;
 var
-  I: TCoordSysType;
-  VCaption: TCoordSysTypeCaption;
+  I: TDegrShowFormat;
+  VCaption: TDegrShowFormatCaption;
 begin
-  VCaption := GetCoordSysTypeCaption;
-  cbbCoordSysType.Clear;
-  for I := Low(TCoordSysType) to High(TCoordSysType) do begin
-    cbbCoordSysType.Items.Add(VCaption[I]);
-  end;
-
-  cbbCoordSysType.ItemIndex := Integer(GState.Config.CoordRepresentationConfig.CoordSysType);
-end;
-
-procedure TfrmSettings.InitCoordShowFormat;
-var
-  I: Integer;
-  VIndex: Integer;
-  VItems: TStringDynArray;
-  VConfig: ICoordRepresentationConfigStatic;
-begin
-  cbbCoordRepresentation.Clear;
-  cbbCoordRepresentation.Enabled := False;
-
-  VConfig := GState.Config.CoordRepresentationConfig.GetStatic;
-
-  if GetCoordShowFormatCaptions(VConfig, VItems, VIndex) then begin
-    for I := 0 to Length(VItems) - 1 do begin
-      cbbCoordRepresentation.Items.Add(VItems[I]);
-    end;
-    cbbCoordRepresentation.Enabled := True;
-    cbbCoordRepresentation.ItemIndex := VIndex;
+  VCaption := GetDegrShowFormatCaption;
+  CB_llstrType.Clear;
+  for I := Low(TDegrShowFormat) to High(TDegrShowFormat) do begin
+    CB_llstrType.Items.Add(VCaption[I]);
   end;
 end;
 

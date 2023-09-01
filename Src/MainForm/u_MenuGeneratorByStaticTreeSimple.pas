@@ -59,6 +59,9 @@ type
 implementation
 
 uses
+  {$IF CompilerVersion <= 18.5}
+  Compatibility,
+  {$IFEND}
   TBX,
   TBXExtItems;
 

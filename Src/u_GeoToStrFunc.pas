@@ -24,41 +24,36 @@ unit u_GeoToStrFunc;
 interface
 
 uses
-  SysUtils,
-  t_GeoTypes,
-  u_AnsiStr;
+  t_GeoTypes;
 
-function RoundEx(const chislo: Double; const Precision: Integer): string; inline;
+function RoundEx(const chislo: Double; const Precision: Integer): string;
 function RoundExAnsi(const chislo: Double; const Precision: Integer): AnsiString;
-
-function R2StrPoint(const r: Double): string; inline;
+function R2StrPoint(const r: Double): string;
 function R2AnsiStrPoint(const r: Double): AnsiString;
-
 function LonLat2GShListName(const ALonLat: TDoublePoint; AScale: Integer; APrec: Integer): string;
 function str2r(const AStrValue: string): Double;
 
 // forced with point
-function StrPointToFloat(const S: String): Double; inline;
-function TryStrPointToFloat(const S: String; out AValue: Double): Boolean; inline;
-
-type
-  TGeoToStrFunc = record
-  private
-    class var FFormatSettings: TFormatSettings;
-    class var FFormatSettingsA: TFormatSettingsA;
-  end;
+function StrPointToFloat(const S: String): Double;
+function TryStrPointToFloat(const S: String; out AValue: Double): Boolean;
 
 implementation
 
 uses
-  Math;
+  SysUtils,
+  Math,
+  ALString;
+
+var
+  GFormatSettings : TFormatSettings;
+  GAnsiFormatSettings : TALFormatSettings;
 
 function RoundEx(const chislo: Double; const Precision: Integer): string;
 begin
   if IsNan(chislo) then
     Result := '-'
   else
-    Result := FloatToStrF(chislo, ffFixed, 18, Precision, TGeoToStrFunc.FFormatSettings);
+    Result := FloatToStrF(chislo, ffFixed, 18, Precision, GFormatSettings);
 end;
 
 function RoundExAnsi(const chislo: Double; const Precision: Integer): AnsiString;
@@ -66,7 +61,7 @@ begin
   if IsNan(chislo) then
     Result := '-'
   else
-    Result := FloatToStrFA(chislo, ffFixed, 18, Precision, TGeoToStrFunc.FFormatSettingsA);
+    Result := ALFloatToStrF(chislo, ffFixed, 18, Precision, GAnsiFormatSettings);
 end;
 
 function str2r(const AStrValue: string): Double;
@@ -81,11 +76,16 @@ begin
     if VPos > 0 then begin
       VFormatSettings.DecimalSeparator := ',';
     end else begin
-      VPos := System.Pos('.', AStrValue);
+      VPos := System.pos('.', AStrValue);
       if VPos > 0 then begin
         VFormatSettings.DecimalSeparator := '.';
       end else begin
-        VFormatSettings.DecimalSeparator := FormatSettings.DecimalSeparator;
+        VFormatSettings.DecimalSeparator :=
+          {$IF CompilerVersion >= 23} // XE2 and UP
+          FormatSettings.DecimalSeparator;
+          {$ELSE}
+          DecimalSeparator;
+          {$IFEND}
       end;
     end;
     Result := StrToFloatDef(AStrValue, 0, VFormatSettings);
@@ -94,22 +94,22 @@ end;
 
 function StrPointToFloat(const S: String): Double;
 begin
-  Result := StrToFloat(S, TGeoToStrFunc.FFormatSettings);
+  Result := StrToFloat(S, GFormatSettings);
 end;
 
 function TryStrPointToFloat(const S: String; out AValue: Double): Boolean;
 begin
-  Result := TryStrToFloat(S, AValue, TGeoToStrFunc.FFormatSettings);
+  Result := TryStrToFloat(S, AValue, GFormatSettings);
 end;
 
 function R2StrPoint(const r: Double): string;
 begin
-  Result := FloatToStr(r, TGeoToStrFunc.FFormatSettings);
+  Result := FloatToStr(r, GFormatSettings);
 end;
 
 function R2AnsiStrPoint(const r: Double): AnsiString;
 begin
-  Result := FloatToStrA(r, TGeoToStrFunc.FFormatSettingsA);
+  Result := ALFloatToStr(r, GAnsiFormatSettings);
 end;
 
 function LonLat2GShListName(const ALonLat: TDoublePoint; AScale: Integer; APrec: Integer): string;
@@ -164,7 +164,6 @@ begin
 end;
 
 initialization
-  TGeoToStrFunc.FFormatSettings.DecimalSeparator := '.';
-  TGeoToStrFunc.FFormatSettingsA.DecimalSeparator := '.';
-
+  GFormatSettings.DecimalSeparator := '.';
+  GAnsiFormatSettings.DecimalSeparator := '.';
 end.

@@ -26,35 +26,13 @@ interface
 type
   TTileSource = (tsInternet = 0, tsCache = 1, tsCacheInternet = 2);
 
-  TDistStrFormat = (
-    dsfKmAndM,
-    dsfKmOrM,
+  { Способ отображения расстояний
+  dsfKmAndM - в виде 12 км 299 м
+  dsfSimpleKM - в виед 12.299 км
+  }
+  TDistStrFormat = (dsfKmAndM = 0, dsfSimpleKM = 1);
 
-    dsfSimpleKm,
-    dsfSimpleMeter,
-    dsfSimpleCentimeter,
-
-    dsfSimpleMile,
-    dsfSimpleYard,
-    dsfSimpleFoot,
-    dsfSimpleInch,
-
-    dsfSimpleNauticalMile
-  );
-
-  TAreaStrFormat = (
-    asfAuto,
-
-    asfSqM,
-    asfSqKm,
-    asfHa,
-
-    asfSqFoot,
-    asfSqYard,
-    asfSqMile,
-    asfSqNauticalMile,
-    asfSqAcr
-  );
+  TAreaStrFormat = (asfAuto = 0, asfSqM = 1, asfSqKm = 2, asfHa = 3);
 
   TStringTypeSupport = (stsAscii = 0, stsAnsi = 1, stsUnicode = 2);
   

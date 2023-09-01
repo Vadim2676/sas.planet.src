@@ -24,9 +24,12 @@ unit fr_ElevationProfile;
 interface
 
 {$IFDEF DEBUG}
-  {.$DEFINE ENABLE_DIAGNOSTICS}
   {.$DEFINE SHOW_ELEV_TO_DIST_SCALE_INFO}
 {$ENDIF}
+
+{$IF CompilerVersion > 19.0}
+  {$DEFINE HAS_TEE_GDI_PLUS}
+{$IFEND}
 
 {$IF CompilerVersion > 23.0}
   {$DEFINE HAS_TEE_DRAW_STYLE}
@@ -34,14 +37,9 @@ interface
 {$IFEND}
 
 uses
-  {$IFDEF ENABLE_DIAGNOSTICS}
-  Windows,
-  Diagnostics,
-  {$ENDIF}
   Types,
   SysUtils,
   Classes,
-  Math,
   Controls,
   Graphics,
   Forms,
@@ -49,7 +47,9 @@ uses
   ExtCtrls,
   StdCtrls,
   TBXDkPanels,
+  {.$IFDEF HAS_TEE_GDI_PLUS}
   TeeGDIPlus,
+  {.$ENDIF}
   TeEngine,
   TeeProcs,
   Chart,
@@ -107,12 +107,9 @@ type
 
     LonLat: TDoublePoint;
     IsLonLatValid: Boolean;
-
-    IsMapCenterd: Boolean;
   end;
 
   TOnCloseEvent = procedure() of object;
-  TOnRefreshEvent = procedure() of object;
 
   TfrElevationProfile = class(TFrame)
     pnlTop: TPanel;
@@ -133,10 +130,6 @@ type
     mniKeepAspectRatio: TMenuItem;
     mniZoomWithMouseWheel: TMenuItem;
     mniScaleElevToDist: TMenuItem;
-    mniElevationSource: TMenuItem;
-    mniTrackData: TMenuItem;
-    mniDEMData: TMenuItem;
-    mniN3: TMenuItem;
     procedure btnCloseClick(Sender: TObject);
     procedure mniShowSpeedClick(Sender: TObject);
     procedure mniResetZoomClick(Sender: TObject);
@@ -156,13 +149,10 @@ type
     procedure mniKeepAspectRatioClick(Sender: TObject);
     procedure mniZoomWithMouseWheelClick(Sender: TObject);
     procedure mniScaleElevToDistClick(Sender: TObject);
-    procedure mniTrackDataClick(Sender: TObject);
-    procedure mniDEMDataClick(Sender: TObject);
   private
     FDatum: IDatum;
     FMapGoTo: IMapViewGoto;
     FOnClose: TOnCloseEvent;
-    FOnRefresh: TOnRefreshEvent;
 
     FConfig: IElevationProfileConfig;
     FConfigStatic: IElevationProfileConfigStatic;
@@ -194,7 +184,7 @@ type
 
     procedure ShowPointInfo;
     procedure HidePointInfo;
-    procedure UpdatePointInfo(const AMouseX, AMouseY: Integer; const ADist: PDouble = nil);
+    procedure UpdatePointInfo(const AMouseX, AMouseY: Integer);
 
     procedure OnConfigChange;
 
@@ -204,14 +194,12 @@ type
     procedure ShowProfile(
       const ALines: TArrayOfGeometryLonLatSingleLine
     );
-    procedure SetLocation(const ALonLat: TDoublePoint);
     procedure SetFocusOnChart;
     procedure Clear;
   public
     constructor Create(
       const AParent: TWinControl;
       const AOnClose: TOnCloseEvent;
-      const AOnRefresh: TOnRefreshEvent;
       const AConfig: IElevationProfileConfig;
       const ALanguageManager: ILanguageManager;
       const ADatum: IDatum;
@@ -227,7 +215,6 @@ uses
   gnugettext,
   i_EnumDoublePoint,
   u_ListenerByEvent,
-  u_GeoFunc,
   u_ResStrings;
 
 resourcestring
@@ -256,7 +243,6 @@ const
 constructor TfrElevationProfile.Create(
   const AParent: TWinControl;
   const AOnClose: TOnCloseEvent;
-  const AOnRefresh: TOnRefreshEvent;
   const AConfig: IElevationProfileConfig;
   const ALanguageManager: ILanguageManager;
   const ADatum: IDatum;
@@ -268,7 +254,6 @@ begin
   inherited Create(ALanguageManager);
 
   FOnClose := AOnClose;
-  FOnRefresh := AOnRefresh;
   FConfig := AConfig;
   FDatum := ADatum;
   FMapGoTo := AMapGoTo;
@@ -303,8 +288,6 @@ begin
 
   mniShowSpeed.Checked := FConfigStatic.ShowSpeed;
   mniShowElevation.Checked := FConfigStatic.ShowElevation;
-  mniTrackData.Checked := FConfigStatic.ElevationSource = esTrackMetadata;
-  mniDEMData.Checked := FConfigStatic.ElevationSource = esTerrainProvider;
   mniFilterData.Checked := FConfigStatic.UseDataFiltering;
   mniCenterMap.Checked := FConfigStatic.CenterMap;
 
@@ -374,12 +357,14 @@ procedure TfrElevationProfile.SetupChart;
   end;
 
 begin
+  {$IFDEF HAS_TEE_GDI_PLUS}
   with TTeeGDIPlus.Create(chtProfile) do begin
     Active := True;
     Antialias := False;
     AntiAliasText := gpfNormal;
     TeePanel := chtProfile;
   end;
+  {$ENDIF}
 
   FAxisValuesFormatDef := chtProfile.BottomAxis.AxisValuesFormat;
 
@@ -476,20 +461,6 @@ begin
 
   ShowInfo;
   ShowPointInfo;
-end;
-
-procedure TfrElevationProfile.mniTrackDataClick(Sender: TObject);
-begin
-  mniTrackData.Checked := True;
-  FConfig.ElevationSource := esTrackMetadata;
-  FOnRefresh;
-end;
-
-procedure TfrElevationProfile.mniDEMDataClick(Sender: TObject);
-begin
-  mniDEMData.Checked := True;
-  FConfig.ElevationSource := esTerrainProvider;
-  FOnRefresh;
 end;
 
 procedure TfrElevationProfile.mniZoomWithMouseWheelClick(Sender: TObject);
@@ -1037,7 +1008,7 @@ begin
 
   // point
   if FPointInfo.IsLonLatValid then begin
-    if not FPointInfo.IsMapCenterd and FConfigStatic.CenterMap then begin
+    if FConfigStatic.CenterMap then begin
       FMapGoTo.GotoLonLat(FPointInfo.LonLat, True);
     end else begin
       FMapGoTo.ShowMarker(FPointInfo.LonLat);
@@ -1057,7 +1028,7 @@ begin
   FPointInfo.IsValid := False;
 end;
 
-procedure TfrElevationProfile.UpdatePointInfo(const AMouseX, AMouseY: Integer; const ADist: PDouble);
+procedure TfrElevationProfile.UpdatePointInfo(const AMouseX, AMouseY: Integer);
 
   function FindNearestDist(
     const AValue: Double;
@@ -1182,14 +1153,9 @@ procedure TfrElevationProfile.UpdatePointInfo(const AMouseX, AMouseY: Integer; c
 
 var
   VLeft, VRight: Integer;
-  VDist, VCursorDist: Double;
+  VDist, VCursorDist, VCursorElev: Double;
 begin
-  if ADist <> nil then begin
-    VCursorDist := ADist^;
-  end else begin
-    VCursorDist := FElevationSeries.XScreenToValue(AMouseX);
-  end;
-
+  FElevationSeries.GetCursorValues(VCursorDist, VCursorElev);
   FPointInfo.IsValid := FindNearestDist(VCursorDist, VLeft, VRight);
 
   if not FPointInfo.IsValid then begin
@@ -1204,6 +1170,7 @@ begin
   FPointInfo.Speed := InterpolateValue(FSpeedSeries.YValues, VCursorDist, VLeft, VRight);
 
   FPointInfo.Dist := VCursorDist;
+
   FPointInfo.IsLonLatValid := FindPointLonLat(VCursorDist, VLeft, VRight, FPointInfo.LonLat);
 
   // slope
@@ -1216,8 +1183,6 @@ begin
   end else begin
     FPointInfo.Slope := 0;
   end;
-
-  FPointInfo.IsMapCenterd := ADist <> nil;
 end;
 
 // Utility functions
@@ -1236,127 +1201,6 @@ end;
 class procedure TfrElevationProfile.ResetInfo(out AInfo: TProfileInfoRec);
 begin
   FillChar(AInfo, SizeOf(TProfileInfoRec), 0);
-end;
-
-procedure TfrElevationProfile.SetLocation(const ALonLat: TDoublePoint);
-
-  function FindNearestPoint(
-    const APoints: PDoublePointArray;
-    const ACount: Integer;
-    out ADist: Double;
-    out ANearestPoint: TDoublePoint;
-    out ANearestIndex: Integer
-  ): Boolean;
-  const
-    cEpsilon = 0.000001;
-  var
-    I: Integer;
-    VDist: Double;
-    VCurrPoint: PDoublePoint;
-    VPrevPoint: PDoublePoint;
-    VVectorW: TDoublePoint;
-    VVectorV: TDoublePoint;
-    C1: Double;
-    C2: Double;
-    B: Double;
-    VVectorDist: TDoublePoint;
-  begin
-    Result := False;
-    ADist := NaN;
-    if ACount > 1 then begin
-      VPrevPoint := @APoints[0];
-      for I := 1 to ACount - 1 do begin
-        VCurrPoint := @APoints[I];
-        VVectorW.X := ALonLat.X - VPrevPoint.X;
-        VVectorW.Y := ALonLat.Y - VPrevPoint.Y;
-        VVectorV.X := VCurrPoint.X - VPrevPoint.X;
-        VVectorV.Y := VCurrPoint.Y - VPrevPoint.Y;
-        C1 := VVectorW.X * VVectorV.X + VVectorW.Y * VVectorV.Y;
-        if C1 > 0 then begin
-          C2 := VVectorV.X * VVectorV.X + VVectorV.Y * VVectorV.Y;
-          if C2 > C1 then begin
-            B := C1 / C2;
-            VVectorDist.X := VVectorW.X - B * VVectorV.X;
-            VVectorDist.Y := VVectorW.Y - B * VVectorV.Y;
-            VDist := (VVectorDist.X * VVectorDist.X + VVectorDist.Y * VVectorDist.Y);
-            if VDist < cEpsilon then begin
-              if (not Result) or (ADist > VDist) then begin
-                Result := True;
-                ADist := VDist;
-                ANearestIndex := I - 1;
-                ANearestPoint := VPrevPoint^;
-              end;
-            end;
-          end;
-        end;
-        VPrevPoint := VCurrPoint;
-      end;
-    end;
-  end;
-
-  function FindNearestPointMulti(
-    out APoint: TDoublePoint;
-    out AIndex: Integer
-  ): Boolean;
-  var
-    I: Integer;
-    VCount: Integer;
-    VDist: Double;
-    VDistMin: Double;
-    {$IFDEF ENABLE_DIAGNOSTICS}
-    VStopWatch: TStopwatch;
-    {$ENDIF}
-  begin
-    Result := False;
-    VCount := 0;
-    VDistMin := NaN;
-    {$IFDEF ENABLE_DIAGNOSTICS}
-    VStopWatch := TStopwatch.StartNew;
-    {$ENDIF}
-    for I := 0 to Length(FLines) - 1 do begin
-      if FindNearestPoint(FLines[I].Points, FLines[I].Count, VDist, APoint, AIndex) then begin
-        if Result then begin
-          if VDist < VDistMin then begin
-            VDistMin := VDist;
-            Inc(AIndex, VCount);
-          end;
-        end else begin
-          Result := True;
-          VDistMin := VDist;
-          Inc(AIndex, VCount);
-        end;
-      end;
-      Inc(VCount, FLines[I].Count);
-    end;
-    {$IFDEF ENABLE_DIAGNOSTICS}
-    VStopWatch.Stop;
-    OutputDebugString(PChar(
-      Self.ClassName + '.FindNearestPointMulti: ' + VStopWatch.ElapsedMilliseconds.ToString + ' ms'
-    ));
-    {$ENDIF}
-  end;
-
-var
-  VXPos: Integer;
-  VIndex: Integer;
-  VDist: Double;
-  VNearestPoint: TDoublePoint;
-begin
-  if PointIsEmpty(ALonLat) then begin
-    Exit;
-  end;
-
-  if FindNearestPointMulti(VNearestPoint, VIndex) then begin
-    VDist := FDatum.CalcDist(VNearestPoint, ALonLat);
-    if not FIsDistInMeters then begin
-      VDist := VDist / 1000;
-    end;
-    VDist := FDist[VIndex] + VDist;
-
-    VXPos := FElevationSeries.CalcXPosValue(VDist);
-    UpdatePointInfo(VXPos, 10, @VDist);
-    ShowPointInfo;
-  end;
 end;
 
 end.

@@ -75,17 +75,6 @@ uses
   u_ZmpInfo,
   u_ResStrings;
 
-function IsHiddenZmp(const AName: string): Boolean;
-var
-  VFileName: string;
-begin
-  Result := False;
-  VFileName := ExtractFileName(AName);
-  if VFileName <> '' then begin
-    Result := VFileName[1] = '.';
-  end;
-end;
-
 { TZmpInfoSet }
 
 constructor TZmpInfoSet.Create(
@@ -122,9 +111,7 @@ begin
     VRootFolder := AFilesIterator.GetRootFolderName;
     
     while AFilesIterator.Next(VFileName) do begin
-      if not IsHiddenZmp(VFileName) then begin
-        VFileNameList.Add(VFileName);
-      end;
+      VFileNameList.Add(VFileName);
     end;
     VFileNameList.CustomSort(StringListCompare);
 

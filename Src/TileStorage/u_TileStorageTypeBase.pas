@@ -81,6 +81,9 @@ implementation
 uses
   SysUtils,
   IniFiles,
+  {$IFNDEF UNICODE}
+  CompatibilityIniFiles,
+  {$ENDIF}
   u_ConfigDataProviderByIniFile,
   u_TileStorageAbilities;
 

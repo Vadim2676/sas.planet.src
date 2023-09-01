@@ -33,14 +33,8 @@ type
     function GetIsLatitudeFirst: Boolean;
     property IsLatitudeFirst: Boolean read GetIsLatitudeFirst;
 
-    function GetGeogCoordShowFormat: TGeogCoordShowFormat;
-    property GeogCoordShowFormat: TGeogCoordShowFormat read GetGeogCoordShowFormat;
-
-    function GetProjCoordShowFormat: TProjCoordShowFormat;
-    property ProjCoordShowFormat: TProjCoordShowFormat read GetProjCoordShowFormat;
-
-    function GetMgrsCoordShowFormat: TMgrsCoordShowFormat;
-    property MgrsCoordShowFormat: TMgrsCoordShowFormat read GetMgrsCoordShowFormat;
+    function GetDegrShowFormat: TDegrShowFormat;
+    property DegrShowFormat: TDegrShowFormat read GetDegrShowFormat;
 
     function GetCoordSysType: TCoordSysType;
     property CoordSysType: TCoordSysType read GetCoordSysType;
@@ -55,17 +49,9 @@ type
     procedure SetIsLatitudeFirst(const AValue: Boolean);
     property IsLatitudeFirst: Boolean read GetIsLatitudeFirst write SetIsLatitudeFirst;
 
-    function GetGeogCoordShowFormat: TGeogCoordShowFormat;
-    procedure SetGeogCoordShowFormat(const AValue: TGeogCoordShowFormat);
-    property GeogCoordShowFormat: TGeogCoordShowFormat read GetGeogCoordShowFormat write SetGeogCoordShowFormat;
-
-    function GetProjCoordShowFormat: TProjCoordShowFormat;
-    procedure SetProjCoordShowFormat(const AValue: TProjCoordShowFormat);
-    property ProjCoordShowFormat: TProjCoordShowFormat read GetProjCoordShowFormat write SetProjCoordShowFormat;
-
-    function GetMgrsCoordShowFormat: TMgrsCoordShowFormat;
-    procedure SetMgrsCoordShowFormat(const AValue: TMgrsCoordShowFormat);
-    property MgrsCoordShowFormat: TMgrsCoordShowFormat read GetMgrsCoordShowFormat write SetMgrsCoordShowFormat;
+    function GetDegrShowFormat: TDegrShowFormat;
+    procedure SetDegrShowFormat(const AValue: TDegrShowFormat);
+    property DegrShowFormat: TDegrShowFormat read GetDegrShowFormat write SetDegrShowFormat;
 
     function GetCoordSysType: TCoordSysType;
     procedure SetCoordSysType(const AValue: TCoordSysType);

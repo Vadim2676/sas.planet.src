@@ -27,7 +27,6 @@ uses
   Windows,
   SysUtils,
   Forms,
-  Math,
   Classes,
   Controls,
   Dialogs,
@@ -307,6 +306,9 @@ implementation
 
 uses
   IniFiles,
+  {$IFNDEF UNICODE}
+  CompatibilityIniFiles,
+  {$ENDIF}
   gnugettext,
   t_RMapsSQLite,
   i_InterfaceListSimple,

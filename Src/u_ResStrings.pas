@@ -304,33 +304,14 @@ ResourceString
   SAS_UNITS_kb = 'KB';
   SAS_UNITS_mb = 'MB';
   SAS_UNITS_gb = 'GB';
-
   SAS_UNITS_kmperh = 'km/h';
-  SAS_UNITS_mileperh = 'mi/h';
-  SAS_UNITS_knot = 'knot'; // nautical mile / hour
-
   SAS_UNITS_mperp = '/pixel';
-
   SAS_UNITS_km = 'km';
-  SAS_UNITS_m = 'm';
   SAS_UNITS_sm = 'cm';
-
-  SAS_UNITS_mile = 'mi';
-  SAS_UNITS_yard = 'yd';
-  SAS_UNITS_foot = 'ft';
-  SAS_UNITS_inch = 'in';
-
-  SAS_UNITS_nauticalmile = 'nmi';
-
+  SAS_UNITS_m = 'm';
   SAS_UNITS_m2 = 'm2';
   SAS_UNITS_km2 = 'km2';
   SAS_UNITS_Ha = 'ha';
-
-  SAS_UNITS_yd2 = 'yd2';
-  SAS_UNITS_ft2 = 'ft2';
-  SAS_UNITS_mi2 = 'mi2';
-  SAS_UNITS_nmi2 = 'nmi2';
-  SAS_UNITS_acr = 'acr';
 
 implementation
 

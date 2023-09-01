@@ -454,7 +454,6 @@ uses
   i_MapTypeIconsList in 'Src\MainForm\i_MapTypeIconsList.pas',
   i_MapViewGoto in 'Src\MainForm\i_MapViewGoto.pas',
   i_MapZoomingConfig in 'Src\MainForm\i_MapZoomingConfig.pas',
-  i_MarkOnMapEditProvider in 'Src\MainForm\i_MarkOnMapEditProvider.pas',
   i_MenuGeneratorByTree in 'Src\MainForm\i_MenuGeneratorByTree.pas',
   i_MessageHandler in 'Src\MainForm\i_MessageHandler.pas',
   i_MouseHandler in 'Src\MainForm\i_MouseHandler.pas',
@@ -500,7 +499,6 @@ uses
   u_MapTypeMenuItemsGeneratorSimple in 'Src\MainForm\u_MapTypeMenuItemsGeneratorSimple.pas',
   u_MapViewGoto in 'Src\MainForm\u_MapViewGoto.pas',
   u_MapZoomingConfig in 'Src\MainForm\u_MapZoomingConfig.pas',
-  u_MarkOnMapEditProvider in 'Src\MainForm\u_MarkOnMapEditProvider.pas',
   u_MarksDbMenu in 'Src\MainForm\u_MarksDbMenu.pas',
   u_MenuGeneratorByStaticTreeSimple in 'Src\MainForm\u_MenuGeneratorByStaticTreeSimple.pas',
   u_MouseState in 'Src\MainForm\u_MouseState.pas',
@@ -899,7 +897,6 @@ uses
   u_AntiBanStuped in 'Src\Network\u_AntiBanStuped.pas',
   u_AsyncRequestHelperThread in 'Src\Network\u_AsyncRequestHelperThread.pas',
   u_ContentDecoder in 'Src\Network\u_ContentDecoder.pas',
-  u_ContentDetecter in 'Src\Network\u_ContentDetecter.pas',
   u_CurlHttpClient in 'Src\Network\u_CurlHttpClient.pas',
   u_CurlProxyResolver in 'Src\Network\u_CurlProxyResolver.pas',
   u_DownloadCheckerStuped in 'Src\Network\u_DownloadCheckerStuped.pas',
@@ -1459,7 +1456,6 @@ uses
   i_WindowPositionConfig in 'Src\i_WindowPositionConfig.pas',
   t_CommonTypes in 'Src\t_CommonTypes.pas',
   t_GeoTypes in 'Src\t_GeoTypes.pas',
-  u_AnsiStr in 'Src\u_AnsiStr.pas',
   u_BitmapFunc in 'Src\u_BitmapFunc.pas',
   u_CommonFormAndFrameParents in 'Src\u_CommonFormAndFrameParents.pas',
   u_FileSystemFunc in 'Src\u_FileSystemFunc.pas',
@@ -1523,7 +1519,6 @@ uses
   u_ValueToStringConverterConfig in 'Src\u_ValueToStringConverterConfig.pas',
   u_WindowPositionConfig in 'Src\u_WindowPositionConfig.pas';
 
-{$R .\Resources\Manifest.res}
 {$R .\Resources\VersionInfo.res}
 {$R .\Resources\MainIcon.res}
 {$R .\Resources\Common.res}

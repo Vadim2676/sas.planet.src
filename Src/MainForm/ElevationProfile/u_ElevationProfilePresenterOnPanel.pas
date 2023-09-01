@@ -27,7 +27,6 @@ uses
   SysUtils,
   Controls,
   TB2Item,
-  t_GeoTypes,
   i_Datum,
   i_GeometryLonLat,
   i_ElevationMetaWriter,
@@ -36,17 +35,12 @@ uses
   i_LanguageManager,
   i_MapViewGoto,
   i_VectorDataItemSimple,
-  i_TerrainConfig,
-  i_Listener,
   u_BaseInterfacedObject,
   fr_ElevationProfile;
 
 type
   TElevationProfilePresenterOnPanel = class(TBaseInterfacedObject, IElevationProfilePresenter)
   private
-    FItemCached: IVectorDataItem;
-    FLonLatLocation: TDoublePoint;
-
     FDrawParent: TWinControl;
     FVisibilityToggleItem: TTBCustomItem;
     FConfig: IElevationProfileConfig;
@@ -54,14 +48,8 @@ type
     FDatum: IDatum;
     FMapGoTo: IMapViewGoto;
 
-    FTerrainConfig: ITerrainConfig;
-    FTerrainConfigListener: IListener;
-
     FfrElevationProfile: TfrElevationProfile;
     FElevationMetaWriter: IElevationMetaWriter;
-
-    procedure AddTerrainConfigListener;
-    procedure RemoveTerrainConfigListener;
 
     procedure ShowProfileInternal(
       const AItem: IVectorDataItem;
@@ -71,19 +59,14 @@ type
     procedure OnElevationMetaWrite(const AItem: IVectorDataItem);
 
     procedure HideParent;
-    procedure RefreshParent;
   private
     { IElevationProfilePresenter }
-    procedure ShowProfile(
-      const AItem: IVectorDataItem;
-      const ALonLatLocation: PDoublePoint = nil
-    );
+    procedure ShowProfile(const AItem: IVectorDataItem);
   public
     constructor Create(
       const ADrawParent: TWinControl;
       const AVisibilityToggleItem: TTBCustomItem;
       const AConfig: IElevationProfileConfig;
-      const ATerrainConfig: ITerrainConfig;
       const ALanguageManager: ILanguageManager;
       const ADatum: IDatum;
       const AMapGoTo: IMapViewGoto;
@@ -95,8 +78,7 @@ type
 implementation
 
 uses
-  u_ListenerByEvent,
-  u_GeoFunc,
+  t_GeoTypes,
   u_GeometryFunc;
 
 { TElevationProfilePresenterOnPanel }
@@ -105,7 +87,6 @@ constructor TElevationProfilePresenterOnPanel.Create(
   const ADrawParent: TWinControl;
   const AVisibilityToggleItem: TTBCustomItem;
   const AConfig: IElevationProfileConfig;
-  const ATerrainConfig: ITerrainConfig;
   const ALanguageManager: ILanguageManager;
   const ADatum: IDatum;
   const AMapGoTo: IMapViewGoto;
@@ -117,48 +98,24 @@ begin
   FDrawParent := ADrawParent;
   FVisibilityToggleItem := AVisibilityToggleItem;
   FConfig := AConfig;
-  FTerrainConfig := ATerrainConfig;
   FLanguageManager := ALanguageManager;
   FDatum := ADatum;
   FMapGoTo := AMapGoTo;
   FElevationMetaWriter := AElevationMetaWriter;
 
   FfrElevationProfile := nil;
-  FTerrainConfigListener := nil;
 
   HideParent;
 end;
 
 destructor TElevationProfilePresenterOnPanel.Destroy;
 begin
-  RemoveTerrainConfigListener;
   //FreeAndNil(FfrElevationProfile); // ???
   inherited Destroy;
 end;
 
-procedure TElevationProfilePresenterOnPanel.AddTerrainConfigListener;
-begin
-  if (FTerrainConfigListener = nil) and (FTerrainConfig <> nil) then begin
-    FTerrainConfigListener := TNotifyNoMmgEventListener.Create(Self.RefreshParent);
-    FTerrainConfig.ChangeNotifier.Add(FTerrainConfigListener);
-  end;
-end;
-
-procedure TElevationProfilePresenterOnPanel.RemoveTerrainConfigListener;
-begin
-  if (FTerrainConfig <> nil) and (FTerrainConfigListener <> nil) then begin
-    FTerrainConfig.ChangeNotifier.Remove(FTerrainConfigListener);
-    FTerrainConfigListener := nil;
-  end;
-end;
-
 procedure TElevationProfilePresenterOnPanel.HideParent;
 begin
-  RemoveTerrainConfigListener;
-
-  FItemCached := nil;
-  FLonLatLocation := CEmptyDoublePoint;
-
   FDrawParent.Visible := False;
   FVisibilityToggleItem.Enabled := False;
 
@@ -167,46 +124,36 @@ begin
   end;
 end;
 
-procedure TElevationProfilePresenterOnPanel.RefreshParent;
-var
-  VItem: IVectorDataItem;
-begin
-  // initialize force redraw elevation profile
-  VItem := FItemCached;
-  FItemCached := nil;
-
-  ShowProfile(VItem);
-end;
-
 procedure TElevationProfilePresenterOnPanel.ShowProfile(
-  const AItem: IVectorDataItem;
-  const ALonLatLocation: PDoublePoint
+  const AItem: IVectorDataItem
 );
+
+  function IsElevationMetaPresent(
+    const ALines: TArrayOfGeometryLonLatSingleLine
+  ): Boolean;
+  var
+    I: Integer;
+    VMeta: PDoublePointsMeta;
+  begin
+    Result := False;
+    for I := 0 to Length(ALines) - 1 do begin
+      VMeta := ALines[I].Meta;
+      if (VMeta <> nil) and (VMeta.Elevation <> nil) then begin
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+
 var
   VLines: TArrayOfGeometryLonLatSingleLine;
 begin
   Assert(Supports(AItem.Geometry, IGeometryLonLatLine));
 
-  if ALonLatLocation <> nil then begin
-    FLonLatLocation := ALonLatLocation^;
-  end else begin
-    FLonLatLocation := CEmptyDoublePoint;
-  end;
-
-  if (FItemCached <> nil) and FItemCached.Geometry.IsSameGeometry(AItem.Geometry) then begin
-    FfrElevationProfile.SetLocation(FLonLatLocation);
-    Exit;
-  end;
-
-  RemoveTerrainConfigListener;
-
-  FItemCached := AItem;
-
   if FfrElevationProfile = nil then begin
     FfrElevationProfile := TfrElevationProfile.Create(
       FDrawParent,
       Self.HideParent,
-      Self.RefreshParent,
       FConfig,
       FLanguageManager,
       FDatum,
@@ -216,21 +163,13 @@ begin
 
   VLines := GeometryLonLatLineToArray(AItem.Geometry as IGeometryLonLatLine);
 
-  case FConfig.ElevationSource of
-    esTrackMetadata: begin
-      ShowProfileInternal(AItem, VLines);
-    end;
-    esTerrainProvider: begin
-      FElevationMetaWriter.ProcessItemAsync(
-        AItem,
-        Self.OnElevationMetaWrite
-      );
-    end;
-    esBoth: begin
-      Assert(False, 'ToDo');
-    end;
-  else
-    Assert(False);
+  if IsElevationMetaPresent(VLines) then begin
+    ShowProfileInternal(AItem, VLines);
+  end else begin
+    FElevationMetaWriter.ProcessItemAsync(
+      AItem,
+      Self.OnElevationMetaWrite
+    );
   end;
 end;
 
@@ -239,20 +178,17 @@ procedure TElevationProfilePresenterOnPanel.ShowProfileInternal(
   const ALines: TArrayOfGeometryLonLatSingleLine
 );
 begin
-  FfrElevationProfile.ShowProfile(ALines);
-  FfrElevationProfile.Visible := True;
-
-  FDrawParent.Visible := True;
   if FDrawParent.Height < 200 then begin
     FDrawParent.Height := 200;
   end;
 
+  FfrElevationProfile.ShowProfile(ALines);
+  FfrElevationProfile.Visible := True;
+
+  FDrawParent.Visible := True;
   FVisibilityToggleItem.Enabled := True;
 
   FfrElevationProfile.SetFocusOnChart;
-  FfrElevationProfile.SetLocation(FLonLatLocation);
-
-  AddTerrainConfigListener;
 end;
 
 procedure TElevationProfilePresenterOnPanel.OnElevationMetaWrite(const AItem: IVectorDataItem);

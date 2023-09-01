@@ -85,13 +85,12 @@ implementation
 uses
   Math,
   t_GeoTypes,
-  t_CoordRepresentation,
   i_ProjectionType,
   u_SimpleFlagWithInterlock,
   u_GeoFunc,
   u_Synchronizer;
 
-{ TBitmapLayerProviderGridDegree }
+{ TBitmapLayerProviderGridGenshtab }
 
 constructor TBitmapLayerProviderGridDegree.Create(
   const ABitmapFactory: IBitmap32StaticFactory;
@@ -141,7 +140,6 @@ var
   i, j: Integer;
   VTextSize: TSize;
   VListNameLon, VListNameLat: string;
-  VCoordParts: TCoordPartArray;
   VLocalCellCenter: TDoublePoint;
   VOutPoint: TPoint;
 begin
@@ -189,11 +187,13 @@ begin
       VLocalCellCenter := RectCenter(VLocalRectOfCell);
 
       if abs(VLonLatRectOfCell.Top) <= 85 then begin
-        VCoordParts := FCoordToStringConverter.LonLatConvertExt(
-          VLonLatRectOfCell.TopLeft, cstWGS84, [coCutZero]
-        );
-        VListNameLon := VCoordParts[cpiLon];
-        VListNameLat := VCoordParts[cpiLat];
+        FCoordToStringConverter.LonLatConvert(
+          VLonLatRectOfCell.Left,
+          VLonLatRectOfCell.Top,
+          True,
+          VListNameLon,
+          VListNameLat
+        )
       end else begin
         VListNameLon := '';
         VListNameLat := '';

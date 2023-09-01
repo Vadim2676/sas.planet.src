@@ -30,9 +30,6 @@ uses
   SynCommons,
   t_MarkSystemORM;
 
-const
-  CUnlimCacheSize = High(Int64);
-
 type
   (****************************************************************************)
   (*                            TSQLCacheBase                                 *)
@@ -44,7 +41,7 @@ type
     FRow: TDynArray;
     FIsPrepared: Boolean;
     FDataSize: Int64;
-    FMaxCacheSize: Int64;
+    FMaxCacheRamUsed: Int64;
     function GetSize: Int64;
     function GetIsSorted: Boolean; inline;
     procedure CheckCacheSize; inline;
@@ -63,7 +60,7 @@ type
       const ATypeInfo: pointer;
       var AValue;
       const AKind: TDynArrayKind;
-      const AMaxCacheSize: Int64
+      const AMaxCacheRamUsed: Int64
     );
     destructor Destroy; override;
   end;
@@ -85,7 +82,7 @@ type
       const ATypeInfo: pointer;
       var AValue;
       const AKind: TDynArrayKind;
-      const AMaxCacheSize: Int64
+      const AMaxCacheRamUsed: Int64
     );
     destructor Destroy; override;
   end;
@@ -141,7 +138,7 @@ type
     FOnDelete: TOnDynArrayItemDelete;
     FDataType: TRecWithPointerKnownTypes;
     FDataSize: Int64;
-    FMaxCacheSize: Int64;
+    FMaxCacheRamUsed: Int64;
     function GetSize: Int64;
     procedure CheckCacheSize; inline;
   public
@@ -163,7 +160,7 @@ type
     constructor Create(
       const ADataType: TRecWithPointerKnownTypes;
       const AOnItemDelete: TOnDynArrayItemDelete;
-      const AMaxCacheSize: Int64
+      const AMaxCacheRamUsed: Int64
     );
     destructor Destroy; override;
   end;
@@ -180,11 +177,11 @@ constructor TSQLCacheBase.Create(
   const ATypeInfo: pointer;
   var AValue;
   const AKind: TDynArrayKind;
-  const AMaxCacheSize: Int64
+  const AMaxCacheRamUsed: Int64
 );
 begin
   inherited Create;
-  FMaxCacheSize := AMaxCacheSize;
+  FMaxCacheRamUsed := AMaxCacheRamUsed;
   FDataSize := 0;
   FIsPrepared := False;
   FCount := 0;
@@ -219,14 +216,16 @@ begin
   {$IFDEF SQL_LOG_CACHE_ENTER}
   SQLLogEnter(Self, 'CheckCacheSize');
   {$ENDIF}
-  if Self.Size > FMaxCacheSize then begin
-    {$IFDEF SQL_LOG_CACHE_SIZE}
-    SQLLogInfo('Init auto-reset: CurSize=%, MaxSize=%', [Self.Size, FMaxCacheSize], Self);
-    {$ENDIF}
-    Reset;
+  if FMaxCacheRamUsed > 0 then begin
+    if Self.Size > FMaxCacheRamUsed then begin
+      {$IFDEF SQL_LOG_CACHE_SIZE}
+      SQLLogInfo('Init auto-reset: CurSize=%, MaxSize=%', [Self.Size, FMaxCacheRamUsed], Self);
+      {$ENDIF}
+      Reset;
+    end;
   end;
   {$IFDEF SQL_LOG_CACHE_SIZE}
-  SQLLogDebug('CurSize=%, MaxSize=%', [Self.Size, FMaxCacheSize], Self);
+  SQLLogDebug('CurSize=%, MaxSize=%', [Self.Size, FMaxCacheRamUsed], Self);
   {$ENDIF}
 end;
 
@@ -264,10 +263,10 @@ constructor TSQLCacheBaseWithPreparedByCategory.Create(
   const ATypeInfo: Pointer;
   var AValue;
   const AKind: TDynArrayKind;
-  const AMaxCacheSize: Int64
+  const AMaxCacheRamUsed: Int64
 );
 begin
-  inherited Create(ATypeInfo, AValue, AKind, AMaxCacheSize);
+  inherited Create(ATypeInfo, AValue, AKind, AMaxCacheRamUsed);
   FPreparedCategoriesCount := 0;
   FPreparedCategoriesDynArr.InitSpecific(
     TypeInfo(TIDDynArray), FPreparedCategories, djInt64, @FPreparedCategoriesCount
@@ -392,13 +391,13 @@ end;
 constructor TDynArrayByRecWithPointer.Create(
   const ADataType: TRecWithPointerKnownTypes;
   const AOnItemDelete: TOnDynArrayItemDelete;
-  const AMaxCacheSize: Int64
+  const AMaxCacheRamUsed: Int64
 );
 begin
   inherited Create;
   FDataType := ADataType;
   FOnDelete := AOnItemDelete;
-  FMaxCacheSize := AMaxCacheSize;
+  FMaxCacheRamUsed := AMaxCacheRamUsed;
   if FDataType = dpCustom then begin
     Assert(Assigned(FOnDelete));
   end;
@@ -629,14 +628,16 @@ begin
   {$IFDEF SQL_LOG_CACHE_ENTER}
   SQLLogEnter(Self, 'CheckCacheSize');
   {$ENDIF}
-  if Self.Size > FMaxCacheSize then begin
-    {$IFDEF SQL_LOG_CACHE_SIZE}
-    SQLLogInfo('Init auto-reset: CurSize=%, MaxSize=%', [Self.Size, FMaxCacheSize], Self);
-    {$ENDIF}
-    Reset;
+  if FMaxCacheRamUsed > 0 then begin
+    if Self.Size > FMaxCacheRamUsed then begin
+      {$IFDEF SQL_LOG_CACHE_SIZE}
+      SQLLogInfo('Init auto-reset: CurSize=%, MaxSize=%', [Self.Size, FMaxCacheRamUsed], Self);
+      {$ENDIF}
+      Reset;
+    end;
   end;
   {$IFDEF SQL_LOG_CACHE_SIZE}
-  SQLLogDebug('CurSize=%, MaxSize=%', [Self.Size, FMaxCacheSize], Self);
+  SQLLogDebug('CurSize=%, MaxSize=%', [Self.Size, FMaxCacheRamUsed], Self);
   {$ENDIF}
 end;
 

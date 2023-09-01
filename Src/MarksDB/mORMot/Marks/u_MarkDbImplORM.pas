@@ -85,11 +85,6 @@ type
       const ACategoryId: TID = 0
     ): IInterfaceListStatic;
 
-    function _GetMarkInternalId(
-      const AMark: IInterface;
-      out AId: TID
-    ): Boolean;
-
     procedure _GetMarkSubset(
       const ACategoryID: TID;
       const AIncludeHiddenMarks: Boolean;
@@ -107,8 +102,7 @@ type
     function _UpdateMark(
       const AOldMark: IInterface;
       const ANewMark: IInterface;
-      out AIsChanged: Boolean;
-      const AUseTransactions: Boolean
+      out AIsChanged: Boolean
     ): IVectorDataItem;
 
     class function _GetCategoryID(const ACategory: ICategory): TID; inline;
@@ -267,7 +261,7 @@ begin
 
   FStateChangeNotifier := FStateInternal.ChangeNotifier;
   if Assigned(FStateChangeNotifier) then begin
-    FStateChangeListener := TNotifyNoMmgEventListener.Create(Self._OnStateChange);
+    FStateChangeListener := TNotifyNoMmgEventListener.Create(_OnStateChange);
     FStateChangeNotifier.Add(FStateChangeListener);
   end else begin
     FStateChangeListener := nil;
@@ -278,12 +272,10 @@ destructor TMarkDbImplORM.Destroy;
 begin
   if Assigned(FStateChangeNotifier) and Assigned(FStateChangeListener) then begin
     FStateChangeNotifier.Remove(FStateChangeListener);
-    FStateChangeListener := nil;
   end;
   FreeAndNil(FHelper);
-  FStateInternal := nil;
   FFactoryDbInternal := nil;
-  inherited Destroy;
+  inherited;
 end;
 
 procedure TMarkDbImplORM._OnStateChange;
@@ -520,35 +512,14 @@ begin
   end;
 end;
 
-function TMarkDbImplORM._GetMarkInternalId(const AMark: IInterface; out AId: TID): Boolean;
-var
-  VMark: IVectorDataItem;
-  VMarkInternal: IMarkInternalORM;
-begin
-  AId := cEmptyID;
-  if Supports(AMark, IMarkInternalORM, VMarkInternal) then begin
-    if VMarkInternal.DbId = FDbId then begin
-      AId := VMarkInternal.Id;
-    end;
-  end else
-  if Supports(AMark, IVectorDataItem, VMark) then begin
-    if Supports(VMark.MainInfo, IMarkInternalORM, VMarkInternal) then begin
-      if VMarkInternal.DbId = FDbId then begin
-        AId := VMarkInternal.Id;
-      end;
-    end;
-  end;
-  Result := AId <> cEmptyID;
-end;
-
 function TMarkDbImplORM._UpdateMark(
   const AOldMark: IInterface;
   const ANewMark: IInterface;
-  out AIsChanged: Boolean;
-  const AUseTransactions: Boolean
+  out AIsChanged: Boolean
 ): IVectorDataItem;
 var
   VIdOld: TID;
+  VMarkInternal: IMarkInternalORM;
   VOldMark: IVectorDataItem;
   VNewMark: IVectorDataItem;
   VSQLMarkRecNew: TSQLMarkRec;
@@ -557,13 +528,29 @@ begin
   Result := nil;
   AIsChanged := False;
 
-  if Assigned(AOldMark) then begin
-    if not _GetMarkInternalId(AOldMark, VIdOld) then begin
+  VIdOld := 0;
+
+  if Supports(AOldMark, IMarkInternalORM, VMarkInternal) then begin
+    if VMarkInternal.DbId = FDbId then begin
+      VIdOld := VMarkInternal.Id;
+    end else begin
       Assert(False);
       Exit;
     end;
+  end else if Supports(AOldMark, IVectorDataItem, VOldMark) then begin
+    if Supports(VOldMark.MainInfo, IMarkInternalORM, VMarkInternal) then begin
+      if VMarkInternal.DbId = FDbId then begin
+        VIdOld := VMarkInternal.Id;
+      end else begin
+        Assert(False);
+        Exit;
+      end;
+    end;
   end else begin
-    VIdOld := 0;
+    Assert(not Assigned(AOldMark));
+    if Assigned(AOldMark) then begin
+      Exit;
+    end;
   end;
 
   if Supports(ANewMark, IVectorDataItem, VNewMark) then begin
@@ -583,32 +570,35 @@ begin
     VNewMark := nil;
   end;
 
-  if (VIdOld = 0) and (VNewMark <> nil) then begin
-    // INSERT
-    _SQLMarkRecFromMark(VNewMark, VSQLMarkRecNew);
-    if FHelper.InsertMarkSQL(VSQLMarkRecNew, AUseTransactions) then begin
-      Result := FFactoryDbInternal.CreateMark(VSQLMarkRecNew);
-      AIsChanged := True;
+  VOldMark := nil;
+  if VIdOld > 0 then begin
+    VOldMark := _GetMarkSQL(VIdOld);
+    if (VOldMark <> nil) and (VNewMark <> nil) then begin
+      if VOldMark.IsEqual(VNewMark) then begin
+        Result := VOldMark;
+        Exit;
+      end;
     end;
-  end else
-  if (VIdOld > 0) and (VNewMark = nil) then begin
-    // DELETE
-    AIsChanged := FHelper.DeleteMarkSQL(VIdOld, AUseTransactions);
-  end else
-  if (VIdOld > 0) and (VNewMark <> nil) then begin
-    VOldMark := _GetMarkSQL(VIdOld); // fetch mark from db
-    if VOldMark = nil then begin
-      Assert(False, 'Old mark not in DB: MarkID=' + IntToStr(VIdOld));
-      Exit;
-    end;
-    if VOldMark.IsEqual(VNewMark) then begin
-      // nothing to do
-      Result := VOldMark;
-    end else begin
+  end;
+
+  if VOldMark <> nil then begin
+    if VNewMark <> nil then begin
       // UPDATE
       _SQLMarkRecFromMark(VOldMark, VSQLMarkRecOld);
       _SQLMarkRecFromMark(VNewMark, VSQLMarkRecNew);
       if FHelper.UpdateMarkSQL(VSQLMarkRecOld, VSQLMarkRecNew) then begin
+        Result := FFactoryDbInternal.CreateMark(VSQLMarkRecNew);
+        AIsChanged := True;
+      end;
+    end else begin
+      // DELETE
+      AIsChanged := FHelper.DeleteMarkSQL(VIdOld);
+    end;
+  end else begin
+    // INSERT
+    if VNewMark <> nil then begin
+      _SQLMarkRecFromMark(VNewMark, VSQLMarkRecNew);
+      if FHelper.InsertMarkSQL(VSQLMarkRecNew) then begin
         Result := FFactoryDbInternal.CreateMark(VSQLMarkRecNew);
         AIsChanged := True;
       end;
@@ -627,7 +617,7 @@ begin
 
   LockWrite;
   try
-    Result := _UpdateMark(AOldMark, ANewMark, VIsChanged, True);
+    Result := _UpdateMark(AOldMark, ANewMark, VIsChanged);
     if VIsChanged then begin
       SetChanged;
     end;
@@ -650,7 +640,6 @@ var
   VIsChanged: Boolean;
   VDoNotify: Boolean;
   VTransaction: TTransactionRec;
-  VIds: TIDDynArray;
 begin
   Result := nil;
   VDoNotify := False;
@@ -661,7 +650,7 @@ begin
 
     LockWrite;
     try
-      StartTransaction(FClient, VTransaction, TSQLMark, FHelper.IsReadOnly);
+      StartTransaction(FClient, VTransaction, TSQLMark);
       try
         if (AOldMarkList <> nil) then begin
           if AOldMarkList.Count < ANewMarkList.Count then begin
@@ -676,13 +665,9 @@ begin
           VMaxCount := ANewMarkList.Count;
         end;
         for I := 0 to VMinCount - 1 do begin
-          if VDoNotify and (I mod 1000 = 0) then begin
-            CommitTransaction(FClient, VTransaction);
-            StartTransaction(FClient, VTransaction, TSQLMark, FHelper.IsReadOnly);
-          end;
           VOld := AOldMarkList[I];
           VNew := ANewMarkList[I];
-          VResult := _UpdateMark(VOld, VNew, VIsChanged, False);
+          VResult := _UpdateMark(VOld, VNew, VIsChanged);
           VDoNotify := VDoNotify or VIsChanged;
           VTemp.Add(VResult);
         end;
@@ -695,14 +680,10 @@ begin
           if (I < ANewMarkList.Count) then begin
             VNew := ANewMarkList[I];
           end;
-          VResult := _UpdateMark(VOld, VNew, VIsChanged, False);
+          VResult := _UpdateMark(VOld, VNew, VIsChanged);
           VDoNotify := VDoNotify or VIsChanged;
           if I < VTemp.Capacity then begin
             VTemp.Add(VResult);
-          end;
-          if VDoNotify and (I mod 1000 = 0) then begin
-            CommitTransaction(FClient, VTransaction);
-            StartTransaction(FClient, VTransaction, TSQLMark, FHelper.IsReadOnly);
           end;
         end;
         CommitTransaction(FClient, VTransaction);
@@ -721,14 +702,18 @@ begin
   end else begin
     LockWrite;
     try
-      SetLength(VIds, AOldMarkList.Count);
-      for I := 0 to AOldMarkList.Count - 1 do begin
-        if not _GetMarkInternalId(AOldMarkList[I], VIds[I]) then begin
-          Assert(False, 'Can''t get internal MarkID');
-          Exit;
+      StartTransaction(FClient, VTransaction, TSQLMark);
+      try
+        for I := 0 to AOldMarkList.Count - 1 do begin
+          _UpdateMark(AOldMarkList[I], nil, VIsChanged);
+          VDoNotify := VDoNotify or VIsChanged;
         end;
+        CommitTransaction(FClient, VTransaction);
+      except
+        RollBackTransaction(FClient, VTransaction);
+        raise;
       end;
-      if FHelper.DeleteMarkSQL(VIds) then begin
+      if VDoNotify then begin
         SetChanged;
       end;
     finally
@@ -1102,7 +1087,7 @@ begin
   if (AMarkList <> nil) and (AMarkList.Count > 0) then begin
     LockWrite;
     try
-      StartTransaction(FClient, VTransaction, TSQLMarkView, FHelper.IsReadOnly);
+      StartTransaction(FClient, VTransaction, TSQLMarkView);
       try
         VIsChanged := False;
         for I := 0 to AMarkList.Count - 1 do begin

@@ -69,7 +69,6 @@ type
     FDBMSProps: TSQLDBConnectionProperties;
     {$ENDIF}
     FMongoClient: TMongoClient;
-    FSQLInitializeTableOptions: TSQLInitializeTableOptions;
   private
     procedure Build;
     procedure BuildSQLite3Client;
@@ -127,8 +126,6 @@ begin
   {$ENDIF}
   FMongoClient := nil;
 
-  FSQLInitializeTableOptions := [itoNoIndex4TID];
-
   Build;
 end;
 
@@ -185,8 +182,7 @@ begin
   FClientDB := TSQLRestClientDB.Create(FModel, nil, VFileName, TSQLRestServerDB);
   FClientDB.DB.WALMode := True; // for multi-user access
   if not FImplConfig.IsReadOnly then begin
-    FClientDB.Server.CreateMissingTables(0, FSQLInitializeTableOptions);
-    CreateMissingIndexesSQLite3(FClientDB.Server);
+    FClientDB.Server.CreateMissingTables;
   end;
 end;
 
@@ -295,11 +291,10 @@ begin
     end;
   end;
   
-  VServer.InitializeTables(FSQLInitializeTableOptions); // initialize void tables
+  VServer.InitializeTables([]);
 
   if not FImplConfig.IsReadOnly then begin
-    VServer.CreateMissingTables(0, FSQLInitializeTableOptions);
-    CreateMissingIndexesMongoDB(VServer);
+    VServer.CreateMissingTables;
   end;
 
   for I := 0 to High(FModel.Tables) do begin
@@ -318,7 +313,6 @@ var
   VConnectionStr: RawUTF8;
   VTable: TSQLRecordClass;
   VTableName: RawUTF8;
-  VServer: TSQLRestServerDB;
   VStorage: TSQLRestStorageExternal;
 begin
   FModel := CreateModelDBMS;
@@ -327,7 +321,7 @@ begin
   case FClientType of
     ctODBC: begin
       {$IFDEF ENABLE_ODBC_DBMS}
-      // 'Driver=PostgreSQL Unicode;Database=sasgis_marks;Server=localhost;Port=5432;UID=postgres;Pwd=1'
+      // 'Driver=PostgreSQL Unicode;Database=sasgis_marks;Server=localhost;Port=5439;UID=postgres;Pwd=1'
       if StartsText('Driver=', VText) then begin
         I := Pos('uid=', AnsiLowerCase(VText));
         if I > 0 then begin
@@ -400,22 +394,20 @@ begin
   end;
 
   FClientDB := TSQLRestClientDB.Create(FModel, nil, ':memory:', TSQLRestServerDB);
-  VServer := FClientDB.Server;
 
   if FDBMSProps.DBMS = dMSSQL then begin
     // Some database client libraries may not allow transactions to be shared
     // among several threads - for instance MS SQL
     // http://synopse.info/files/html/Synopse%20mORMot%20Framework%20SAD%201.18.html#TITLE_196
-    VServer.AcquireExecutionMode[execORMWrite] := amBackgroundThread;
-    VServer.AcquireExecutionMode[execORMGet] := amBackgroundThread;
+    FClientDB.Server.AcquireExecutionMode[execORMWrite] := amBackgroundThread;
+    FClientDB.Server.AcquireExecutionMode[execORMGet] := amBackgroundThread;
   end;
 
-  VServer.CreateMissingTables(0, FSQLInitializeTableOptions);
-  CreateMissingIndexesDBMS(VServer);
+  FClientDB.Server.CreateMissingTables;
 
   for I := 0 to High(FModel.Tables) do begin
     VTable := FModel.Tables[I];
-    VStorage := TSQLRestStorageExternal.Instance(VTable, VServer);
+    VStorage := TSQLRestStorageExternal.Instance(VTable, FClientDB.Server);
     if Assigned(VStorage) then begin
       VStorage.EngineAddUseSelectMaxID := True;
     end;
@@ -440,7 +432,7 @@ begin
         raise EMarkSystemORMError.Create('MarkSystemORM: Can''t init User in read-only mode!');
       end else begin
         VSQLUser.FName := VUserName;
-        StartTransaction(FClientDB, VTransaction, TSQLUser, FImplConfig.IsReadOnly);
+        StartTransaction(FClientDB, VTransaction, TSQLUser);
         try
           CheckID( FClientDB.Add(VSQLUser, True) );
           CommitTransaction(FClientDB, VTransaction);
@@ -488,7 +480,7 @@ end;
 {$IFNDEF USE_STATIC_SQLITE3}
 initialization
   FreeAndNil(sqlite3);
-  sqlite3 := TSQLite3LibraryDynamic.Create('sqlite3.dll');
+  sqlite3 := TSQLite3LibraryDynamic.Create;
 
 finalization
   FreeAndNil(sqlite3);

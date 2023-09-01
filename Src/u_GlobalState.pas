@@ -321,6 +321,10 @@ uses
   {$IFDEF USE_JCL_DEBUG}
   Forms,
   {$ENDIF}
+  {$IFNDEF UNICODE}
+  Compatibility,
+  CompatibilityIniFiles,
+  {$ENDIF}
   u_Notifier,
   u_NotifierOperation,
   c_CoordConverter,
@@ -635,7 +639,6 @@ begin
 
   FTerrainProviderList :=
     TTerrainProviderListSimple.Create(
-      FGlobalConfig.TerrainConfig,
       FProjConverterFactory,
       FProjectionSetFactory,
       FGlobalConfig.TerrainDataPath,

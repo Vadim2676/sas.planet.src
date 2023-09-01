@@ -40,10 +40,9 @@ uses
 
 type
   TClearByTTLStrategy = (
-    csByOldest   = 0, // delete ALL tiles from the cache if the TTL of the OLDEST tile has expired
-    csByYoungest = 1, // remove ALL tiles from the cache if the TTL of the YOUNGEST tile has expired
-    csOneByOne   = 2, // delete only those tiles whose TTL has expired
-    csNoOne      = 3  // do not delete any tile by TTL (disable TTL cleaner)
+    csByOldest   = 0, // удалять ВСЕ тайлы из кэша, если истёк TTL у самого СТАРОГО тайла
+    csByYoungest = 1, // удалять ВСЕ тайлы из кэша, если истёк TTL у самого МОЛОДОГО тайла
+    csOneByOne   = 2  // удалять только те тайлы, у которых истёк TTL
   );
 
   TTileInfoBasicMemCache = class(TBaseInterfacedObject, ITileInfoBasicMemCache)
@@ -444,9 +443,6 @@ var
   VCleanerCalled: Boolean;
   VCounterContext: TInternalPerformanceCounterContext;
 begin
-  if FClearStrategy = csNoOne then begin
-    Exit;
-  end;
   FCS.BeginWrite;
   try
     VCounterContext := FClearByTTLCounter.StartOperation;

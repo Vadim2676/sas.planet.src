@@ -130,14 +130,15 @@ type
 implementation
 
 uses
-  u_AnsiStr,
+  ALString,
   u_ContentDecoder,
-  u_NetworkStrFunc,
+  u_StrFunc,
   u_ListenerByEvent,
   u_Synchronizer,
   u_HttpStatusChecker,
   u_SimpleFlagWithInterlock,
-  u_StreamReadOnlyByBinaryData;
+  u_StreamReadOnlyByBinaryData,
+  u_BinaryDataByMemStream;
 
 {$IFDEF VerboseHttpClient}
 procedure VerboseStatusChange(
@@ -173,12 +174,12 @@ begin
   FCS := GSync.SyncBig.Make(Self.ClassName);
 
   FHttpClient := TALWinInetHTTPClient.Create;
-  FHttpClient.OnStatus := Self.DoOnALStatusChange;
+  FHttpClient.OnStatusChange := Self.DoOnALStatusChange;
   if Assigned(FOnDownloadProgress) then begin
     FHttpClient.OnDownloadProgress := Self.DoOnALDownloadProgress;
   end;
+  FHttpClient.DisconnectOnError := True;
   FHttpClient.IgnoreSecurityErrors := True;
-  FHttpClient.AllowHttp2Protocol := True;
   FHttpClient.RequestHeader.Accept := '*/*';
 
   FHttpResponseHeader := TALHTTPResponseHeader.Create;
@@ -373,7 +374,7 @@ begin
               FAcceptEncoding,
               FTryDetectContentType,
               ARequest,
-              StrToIntA(FHttpResponseHeader.StatusCode),
+              ALStrToInt(FHttpResponseHeader.StatusCode),
               FHttpResponseHeader.RawHeaderText,
               FHttpResponseBody
             );
@@ -481,12 +482,12 @@ begin
 
   // fix automatic URL Decoding inside TALHTTPRequestHeader.SetRawHeaderText
   // for Cookies field: http://www.sasgis.org/mantis/view.php?id=3550
-  VCookie := GetHeaderValueUp(ARawHttpRequestHeader, 'COOKIE');
+  VCookie := GetHeaderValue(ARawHttpRequestHeader, 'Cookie');
   if VCookie <> '' then begin
     FHttpClient.RequestHeader.Cookies.Text := VCookie;
   end;
 
-  VUserAgent := GetHeaderValueUp(ARawHttpRequestHeader, 'USER-AGENT');
+  VUserAgent := GetHeaderValue(ARawHttpRequestHeader, 'User-Agent');
   if VUserAgent = '' then begin
     VUserAgent := AInetConfig.UserAgentString;
   end;
@@ -568,7 +569,7 @@ begin
         VPos := Pos(':', VProxyHost);
         if VPos > 0 then begin
           FHttpClient.ProxyParams.ProxyServer := Copy(VProxyHost, 1, VPos - 1);
-          FHttpClient.ProxyParams.ProxyPort := StrToIntA(Copy(VProxyHost, VPos + 1, Length(VProxyHost)));
+          FHttpClient.ProxyParams.ProxyPort := ALStrToInt(Copy(VProxyHost, VPos + 1, Length(VProxyHost)));
         end else begin
           FHttpClient.ProxyParams.ProxyServer := VProxyHost;
           FHttpClient.ProxyParams.ProxyPort := 0;

@@ -189,10 +189,11 @@ implementation
 uses
   SysUtils,
   DateUtils,
+  ALString,
   AlSqlite3Wrapper,
   libcrc32,
   c_TileStorageSQLite,
-  u_AnsiStr,
+  u_StrFunc,
   u_InterfaceListSimple,
   u_MapVersionListStatic,
   u_TileInfoBasic,
@@ -307,8 +308,8 @@ begin
 
   VMax :=
     '(SELECT v FROM t' +
-    ' WHERE x=' + IntToStrA(AXY.X) +
-    ' AND y=' + IntToStrA(AXY.Y) +
+    ' WHERE x=' + ALIntToStr(AXY.X) +
+    ' AND y=' + ALIntToStr(AXY.Y) +
     ' ORDER BY ' + GetOrderByVersion_DESC(ATBColInfoModeV) + ' LIMIT 1)';
 
   Result := VVer + ' IN (' + ARequestedVersionToDB + ',' + VMax + ')';
@@ -323,12 +324,12 @@ var
 begin
   s :=
     'SELECT s FROM t WHERE ' +
-    'x=' + IntToStrA(AXY.X) + ' AND ' +
-    'y=' + IntToStrA(AXY.Y) + ' AND ' +
-    's=' + IntToStrA(ATileSize);
+    'x=' + ALIntToStr(AXY.X) + ' AND ' +
+    'y=' + ALIntToStr(AXY.Y) + ' AND ' +
+    's=' + ALIntToStr(ATileSize);
 
   // insert or replace where size <>
-  Result := IntToStrA(ATileSize) + '<>' + 'COALESCE((' + s + '),-1)';
+  Result := ALIntToStr(ATileSize) + '<>' + 'COALESCE((' + s + '),-1)';
 end;
 
 function GetCheckOtherVersionsByCRC32SQLText(
@@ -340,12 +341,12 @@ var
 begin
   h :=
     'SELECT h FROM t WHERE ' +
-    'x=' + IntToStrA(AXY.X) + ' AND ' +
-    'y=' + IntToStrA(AXY.Y) + ' AND ' +
-    'h=' + IntToStrA(ATileCRC32);
+    'x=' + ALIntToStr(AXY.X) + ' AND ' +
+    'y=' + ALIntToStr(AXY.Y) + ' AND ' +
+    'h=' + ALIntToStr(ATileCRC32);
 
   // insert or replace where crc32 <>
-  Result := IntToStrA(ATileCRC32) + '<>' + 'COALESCE((' + h + '),-1)';
+  Result := ALIntToStr(ATileCRC32) + '<>' + 'COALESCE((' + h + '),-1)';
 end;
 
 { TTileStorageSQLiteHandler }
@@ -782,8 +783,8 @@ begin
 
   VSQLText :=
     'SELECT v FROM t' +
-    ' WHERE x=' + IntToStrA(AXY.X) +
-    ' AND y=' + IntToStrA(AXY.Y) +
+    ' WHERE x=' + ALIntToStr(AXY.X) +
+    ' AND y=' + ALIntToStr(AXY.Y) +
     ' ORDER BY ' + GetOrderByVersion_DESC(FTBColInfo.ModeV);
 
   VSelectTileVersions.Init;
@@ -852,7 +853,7 @@ var
   VInfo: TSelectTileInfoComplex;
 begin
   with ADeleteTileAllData^ do begin
-    Result := 'DELETE FROM t WHERE x=' + IntToStrA(DXY.X) + ' AND y=' + IntToStrA(DXY.Y);
+    Result := 'DELETE FROM t WHERE x=' + ALIntToStr(DXY.X) + ' AND y=' + ALIntToStr(DXY.Y);
 
     if FTBColInfo.ModeV <> vcm_None then begin
       // table has version field
@@ -886,21 +887,21 @@ begin
   with AEnumData do begin
     // x
     if DestRect.Left = DestRect.Right - 1 then begin
-      Result := Result + '=' + IntToStrA(DestRect.Left);
+      Result := Result + '=' + ALIntToStr(DestRect.Left);
     end else begin
       Result := Result +
-        ' between ' + IntToStrA(DestRect.Left) +
-        ' and ' + IntToStrA(DestRect.Right - 1);
+        ' between ' + ALIntToStr(DestRect.Left) +
+        ' and ' + ALIntToStr(DestRect.Right - 1);
     end;
 
     // y
     Result := Result + ' AND y';
     if DestRect.Top = DestRect.Bottom - 1 then begin
-      Result := Result + '=' + IntToStrA(DestRect.Top);
+      Result := Result + '=' + ALIntToStr(DestRect.Top);
     end else begin
       Result := Result +
-        ' between ' + IntToStrA(DestRect.Top) +
-        ' and ' + IntToStrA(DestRect.Bottom - 1);
+        ' between ' + ALIntToStr(DestRect.Top) +
+        ' and ' + ALIntToStr(DestRect.Bottom - 1);
     end;
   end;
 
@@ -959,7 +960,7 @@ begin
 
   // select single tile
   VSQLText := 'SELECT s,d';
-  VSQLWhere := 'WHERE x=' + IntToStrA(AXY.X) + ' AND y=' + IntToStrA(AXY.Y);
+  VSQLWhere := 'WHERE x=' + ALIntToStr(AXY.X) + ' AND y=' + ALIntToStr(AXY.Y);
   VSQLOrder := '';
 
   if FTBColInfo.ModeV <> vcm_None then begin
@@ -1115,15 +1116,15 @@ begin
     VSQLInsert := 'x,y,d';
 
     VSQLValues :=
-      IntToStrA(SXY.X) + ',' +
-      IntToStrA(SXY.Y) + ',' +
-      IntToStrA(DateTimeToUnix(SLoadDate));
+      ALIntToStr(SXY.X) + ',' +
+      ALIntToStr(SXY.Y) + ',' +
+      ALIntToStr(DateTimeToUnix(SLoadDate));
 
     // crc32
     if FTBColInfo.HasH then begin
       VOriginalTileCRC32 := crc32(0, VOriginalTileBody, VOriginalTileSize);
       VSQLInsert := VSQLInsert + ',h';
-      VSQLValues := VSQLValues + ',' + IntToStrA(VOriginalTileCRC32);
+      VSQLValues := VSQLValues + ',' + ALIntToStr(VOriginalTileCRC32);
     end else begin
       VOriginalTileCRC32 := 0;
     end;
@@ -1166,7 +1167,7 @@ begin
 
     // other fields (s for size and b for body)
     VSQLInsert := VSQLInsert + ',s,b';
-    VSQLValues := VSQLValues + ',' + IntToStrA(VOriginalTileSize) + ',?';
+    VSQLValues := VSQLValues + ',' + ALIntToStr(VOriginalTileSize) + ',?';
 
     // execute for TILE
     try

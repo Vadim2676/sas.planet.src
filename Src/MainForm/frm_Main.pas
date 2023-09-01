@@ -88,7 +88,6 @@ uses
   i_RegionProcess,
   i_LineOnMapEdit,
   i_PointOnMapEdit,
-  i_MarkOnMapEditProvider,
   i_MapTypeIconsList,
   i_MessageHandler,
   i_MouseState,
@@ -613,8 +612,6 @@ type
     tbElevationProfile: TTBXDockablePanel;
     tbxElevationProfileShow: TTBXVisibilityToggleItem;
     tbxitmElevationProfile: TTBXItem;
-    actViewBordersVisible: TAction;
-    tbxMainWindowBordersVisible: TTBXItem;
 
     procedure FormActivate(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -866,7 +863,6 @@ type
     procedure actMarkSaveExecute(Sender: TObject);
     procedure actMarkSaveAsSeparateSegmentsExecute(Sender: TObject);
     procedure actEditPathRouteCalcUndoExecute(Sender: TObject);
-    procedure actViewBordersVisibleExecute(Sender: TObject);
   private
     FactlstProjections: TActionList;
     FactlstLanguages: TActionList;
@@ -950,7 +946,6 @@ type
     FPanelPositionSaveLoad: IPanelsPositionsSaveLoad;
     FStateConfigDataProvider: IConfigDataWriteProvider;
 
-    FMarkOnMapEditProvider: IMarkOnMapEditProviderInternal;
     FLineOnMapEdit: ILineOnMapEdit;
     FLineOnMapByOperation: array [TStateEnum] of ILineOnMapEdit;
     FPointOnMapEdit: IPointOnMapEdit;
@@ -1125,7 +1120,6 @@ type
 
     procedure OnInternalErrorNotify(const AMsg: IInterface);
     procedure SwitchSunCalc(const ACalcType: TSunCalcDataProviderType);
-    procedure OnEditMarkPosition(const AMark: IVectorDataItem);
   protected
     procedure CreateWnd; override;
     procedure DestroyWnd; override;
@@ -1146,6 +1140,10 @@ uses
   StrUtils,
   Math,
   IniFiles,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  CompatibilityIniFiles,
+  {$ENDIF}
   gnugettext,
   GR32_Gamma,
   t_CommonTypes,
@@ -1211,7 +1209,6 @@ uses
   u_TileRectChangeableByLocalConverter,
   u_LineOnMapEdit,
   u_PointOnMapEdit,
-  u_MarkOnMapEditProvider,
   u_MapTypeIconsList,
   u_SelectionRect,
   u_KeyMovingHandler,
@@ -1346,8 +1343,6 @@ begin
   FMapGoto := TMapViewGoto.Create(FActiveProjectionSet, FViewPortState);
   FGpsTrackGoTo := TMapViewGoto.Create(FActiveProjectionSet, FViewPortState);
 
-  FMarkOnMapEditProvider := TMarkOnMapEditProvider.Create(Self.OnEditMarkPosition);
-
   FMarkDBGUI :=
     TMarkDbGUIHelper.Create(
       Self,
@@ -1359,7 +1354,6 @@ begin
       GState.MarkPictureList,
       GState.AppearanceOfMarkFactory,
       GState.MarksDb,
-      FMarkOnMapEditProvider,
       GState.GeoCalc,
       GState.Config.InetConfig,
       GState.InternalDomainUrlHandler,
@@ -2449,7 +2443,6 @@ begin
       tbElevationProfile,
       tbxElevationProfileShow,
       GState.Config.ElevationProfileConfig,
-      GState.Config.TerrainConfig,
       GState.Config.LanguageManager,
       GState.GPSDatum,
       FGpsTrackGoTo,
@@ -2734,7 +2727,6 @@ end;
 
 destructor TfrmMain.Destroy;
 begin
-  FMarkOnMapEditProvider.SetEnabled(False);
   FSearchToolbarContainer.Free;
   FSearchPresenter := nil;
   FPlacemarkPlayerPlugin := nil;
@@ -3341,33 +3333,19 @@ end;
 procedure TfrmMain.OnWinPositionChange;
 var
   VIsFullScreen: Boolean;
-  VIsBordersVisible: Boolean;
   VIsMaximized: Boolean;
   VIsMinimized: Boolean;
   VRect: TRect;
-  VIsDockVisible: Boolean;
 begin
   FWinPosition.LockRead;
   try
     VIsFullScreen := FWinPosition.GetIsFullScreen;
-    VIsBordersVisible := FWinPosition.GetIsBordersVisible;
     VIsMaximized := FWinPosition.GetIsMaximized;
     VIsMinimized := FWinPosition.IsMinimized;
     VRect := FWinPosition.GetBoundsRect;
   finally
     FWinPosition.UnlockRead;
   end;
-
-  if VIsBordersVisible then begin
-    if BorderStyle <> bsSizeable then begin
-      BorderStyle := bsSizeable;
-    end;
-  end else begin
-    if BorderStyle <> bsNone then begin
-      BorderStyle := bsNone;
-    end;
-  end;
-
   if VIsMinimized then begin
     if (not TrayIcon.Visible) and GState.Config.GlobalAppConfig.IsShowIconInTray then begin
       TrayIcon.Visible := True;
@@ -3381,21 +3359,15 @@ begin
       TrayIcon.Visible := False;
     end;
     actViewFullScreen.Checked := VIsFullScreen;
-    actViewBordersVisible.Checked := not VIsBordersVisible;
-
-    VIsDockVisible := not VIsFullScreen and VIsBordersVisible;
-
-    TBExit.Visible := not VIsDockVisible;
-
+    TBExit.Visible := VIsFullScreen;
     TBDock.Parent := Self;
     TBDockLeft.Parent := Self;
     TBDockBottom.Parent := Self;
     TBDockRight.Parent := Self;
-    TBDock.Visible := VIsDockVisible;
-    TBDockLeft.Visible := VIsDockVisible;
-    TBDockBottom.Visible := VIsDockVisible;
-    TBDockRight.Visible := VIsDockVisible;
-
+    TBDock.Visible := not (VIsFullScreen);
+    TBDockLeft.Visible := not (VIsFullScreen);
+    TBDockBottom.Visible := not (VIsFullScreen);
+    TBDockRight.Visible := not (VIsFullScreen);
     if VIsFullScreen then begin
       Self.WindowState := wsMaximized;
       SetBounds(
@@ -4680,38 +4652,32 @@ begin
 end;
 
 procedure TfrmMain.tbitmMarkEditPositionClick(Sender: TObject);
-begin
-  Self.OnEditMarkPosition(FSelectedMark);
-end;
-
-procedure TfrmMain.OnEditMarkPosition(const AMark: IVectorDataItem);
 var
+  VMark: IVectorDataItem;
   VPoint: IGeometryLonLatPoint;
   VLine: IGeometryLonLatLine;
   VPoly: IGeometryLonLatPolygon;
   VPathOnMapEdit: IPathOnMapEdit;
   VPolygonOnMapEdit: IPolygonOnMapEdit;
 begin
-  if AMark = nil then begin
-    Exit;
-  end;
-  if Supports(AMark.Geometry, IGeometryLonLatPoint, VPoint) then begin
-    FEditMarkPoint := AMark;
-    FState.State := ao_edit_point;
-    FPointOnMapEdit.Point := VPoint.Point;
-  end else
-  if Supports(AMark.Geometry, IGeometryLonLatLine, VLine) then begin
-    FEditMarkLine := AMark;
-    FState.State := ao_edit_line;
-    if Supports(FLineOnMapEdit, IPathOnMapEdit, VPathOnMapEdit) then begin
-      VPathOnMapEdit.SetPath(VLine);
-    end;
-  end else
-  if Supports(AMark.Geometry, IGeometryLonLatPolygon, VPoly) then begin
-    FEditMarkPoly := AMark;
-    FState.State := ao_edit_poly;
-    if Supports(FLineOnMapEdit, IPolygonOnMapEdit, VPolygonOnMapEdit) then begin
-      VPolygonOnMapEdit.SetPolygon(VPoly);
+  VMark := FSelectedMark;
+  if VMark <> nil then begin
+    if Supports(VMark.Geometry, IGeometryLonLatPoint, VPoint) then begin
+      FEditMarkPoint := VMark;
+      FState.State := ao_edit_point;
+      FPointOnMapEdit.Point := VPoint.Point;
+    end else if Supports(VMark.Geometry, IGeometryLonLatLine, VLine) then begin
+      FEditMarkLine := VMark;
+      FState.State := ao_edit_line;
+      if Supports(FLineOnMapEdit, IPathOnMapEdit, VPathOnMapEdit) then begin
+        VPathOnMapEdit.SetPath(VLine);
+      end;
+    end else if Supports(VMark.Geometry, IGeometryLonLatPolygon, VPoly) then begin
+      FEditMarkPoly := VMark;
+      FState.State := ao_edit_poly;
+      if Supports(FLineOnMapEdit, IPolygonOnMapEdit, VPolygonOnMapEdit) then begin
+        VPolygonOnMapEdit.SetPolygon(VPoly);
+      end;
     end;
   end;
 end;
@@ -5173,7 +5139,6 @@ procedure TfrmMain.mapMouseUp(
   Layer: TCustomLayer
 );
 var
-  I: Integer;
   VMapProjection: IProjection;
   VSelectionRect: TDoubleRect;
   VSelectionFinished: Boolean;
@@ -5316,26 +5281,11 @@ begin
         FSunCalcProvider.Location := VLonLat;
         Exit;
       end;
-
       VVectorItems := FindItems(VLocalConverter, Point(x, y));
       if (VVectorItems <> nil) and (VVectorItems.Count > 0) then begin
         if (ssCtrl in Shift) then begin
-          for I := 0 to VVectorItems.Count - 1 do begin
-            if Supports(VVectorItems.Items[I].Geometry, IGeometryLonLatPolygon) then begin
-              FMergePolygonsPresenter.AddVectorItems(VVectorItems);
-              Exit;
-            end;
-          end;
-          for I := 0 to VVectorItems.Count - 1 do begin
-            if Supports(VVectorItems.Items[I].Geometry, IGeometryLonLatLine) then begin
-              VProjection := VLocalConverter.Projection;
-              VMouseMapPoint := VLocalConverter.LocalPixel2MapPixelFloat(Point(X, Y));
-              VProjection.ValidatePixelPosFloat(VMouseMapPoint, False);
-              VLonLat := VProjection.PixelPosFloat2LonLat(VMouseMapPoint);
-              FElevationProfilePresenter.ShowProfile(VVectorItems.Items[I], @VLonLat);
-              Exit;
-            end;
-          end;
+          FMergePolygonsPresenter.AddVectorItems(VVectorItems);
+          Exit;
         end;
 
         if THtmlDoc.FromVectorItemsDescription(VVectorItems, VTitle, VDescription) then begin
@@ -5445,7 +5395,7 @@ begin
     end;
   end;
 
-  if FWinPosition.GetIsFullScreen or not FWinPosition.GetIsBordersVisible then begin
+  if FWinPosition.GetIsFullScreen then begin
     if VMousePos.y < 10 then begin
       TBDock.Parent := map;
       TBDock.Visible := True;
@@ -7381,11 +7331,6 @@ end;
 procedure TfrmMain.actShowUpddateCheckerExecute(Sender: TObject);
 begin
   FfrmUpdateChecker.Show;
-end;
-
-procedure TfrmMain.actViewBordersVisibleExecute(Sender: TObject);
-begin
-  FWinPosition.ToggleBordersVisible;
 end;
 
 procedure TfrmMain.actViewFillingMapFilterModeExecute(Sender: TObject);

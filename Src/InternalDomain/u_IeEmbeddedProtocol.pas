@@ -81,6 +81,9 @@ implementation
 uses
   StrUtils,
   SysUtils,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   i_BinaryData;
 
 { TIeEmbeddedProtocol }

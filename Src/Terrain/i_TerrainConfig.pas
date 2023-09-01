@@ -27,13 +27,6 @@ uses
   i_ConfigDataElement;
 
 type
-  TElevationDisplayFormat = (
-    edfRoundedToWhole,
-    edfRoundedToTenth,
-    edfRoundedToHundredths,
-    edfRoundedToThousandths
-  );
-
   ITerrainConfig = interface(IConfigDataElement)
     ['{B89AD0B1-8DB6-4C2B-AF6B-E9F05EA5AC3D}']
     function GetShowInStatusBar: Boolean;
@@ -55,14 +48,6 @@ type
     function GetTrySecondaryElevationProviders: Boolean;
     procedure SetTrySecondaryElevationProviders(const AValue: Boolean);
     property TrySecondaryElevationProviders: Boolean read GetTrySecondaryElevationProviders write SetTrySecondaryElevationProviders;
-
-    function GetUseInterpolation: Boolean;
-    procedure SetUseInterpolation(const AValue: Boolean);
-    property UseInterpolation: Boolean read GetUseInterpolation write SetUseInterpolation;
-
-    function GetElevationDisplayFormat: TElevationDisplayFormat;
-    procedure SetElevationDisplayFormat(const AValue: TElevationDisplayFormat);
-    property ElevationDisplayFormat: TElevationDisplayFormat read GetElevationDisplayFormat write SetElevationDisplayFormat;
   end;
 
 implementation

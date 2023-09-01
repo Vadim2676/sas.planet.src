@@ -35,7 +35,6 @@ type
   private
     FConfig: ICoordRepresentationConfig;
   private
-    { ICoordFromStringParser }
     function TryStrToCoord(
       const ALon: string;
       const ALat: string;
@@ -45,12 +44,8 @@ type
     function TryStrToCoord(
       const AX: string;
       const AY: string;
-      const AZone: string;
-      out ACoord: TDoublePoint
-    ): Boolean; overload;
-
-    function TryStrToCoord(
-      const AStr: string;
+      const AZone: Integer;
+      const AIsNorth: Boolean;
       out ACoord: TDoublePoint
     ): Boolean; overload;
   public
@@ -64,8 +59,10 @@ implementation
 uses
   SysUtils,
   StrUtils,
-  Proj4.UTM,
-  Proj4.GaussKruger,
+  Proj4SK42,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   u_GeoToStrFunc;
 
 function Edit2Digit(
@@ -161,143 +158,56 @@ function TCoordFromStringParser.TryStrToCoord(
   const ALat: string;
   out ACoord: TDoublePoint
 ): Boolean;
+var
+  VCoord: TDoublePoint;
 begin
-  Result := Edit2Digit(ALon, False, ACoord.X);
+  Result := Edit2Digit(ALon, False, VCoord.X);
   if not Result then begin
     Exit;
   end;
 
-  Result := Edit2Digit(ALat, True, ACoord.Y);
+  Result := Edit2Digit(ALat, True, VCoord.Y);
   if not Result then begin
     Exit;
   end;
 
+  Result := False;
   case FConfig.CoordSysType of
-    cstWGS84: begin
-      Result := True;
-    end;
-
-    cstSK42: begin
-      Result := geodetic_sk42_to_wgs84(ACoord.X, ACoord.Y);
-    end
+    cstWGS84: Result := True;
+    cstSK42: Result := geodetic_sk42_to_wgs84(VCoord.X, VCoord.Y);
   else
-    Result := False;
     Assert(False);
+  end;
+
+  if Result then begin
+    ACoord := VCoord;
   end;
 end;
 
 function TCoordFromStringParser.TryStrToCoord(
   const AX: string;
   const AY: string;
-  const AZone: string;
+  const AZone: Integer;
+  const AIsNorth: Boolean;
   out ACoord: TDoublePoint
 ): Boolean;
-
-  procedure _GetZoneParts(out AZoneNumber: Integer; out AZoneLetter: Char);
-  var
-    P: PChar;
-    I: Integer;
-    VZone: string;
-  begin
-    VZone := StringReplace(UpperCase(AZone), ' ', '', [rfReplaceAll]);
-    P := Pointer(VZone);
-
-    I := 0;
-    while P^ <> #0 do begin
-      if AnsiChar(P^) in ['0'..'9'] then begin
-        Inc(P);
-        Inc(I);
-      end else begin
-        Break;
-      end;
-    end;
-
-    if I > 0 then begin
-      AZoneNumber := StrToInt( Copy(VZone, 1, I) );
-    end else begin
-      AZoneNumber := 0;
-    end;
-
-    AZoneLetter := P^;
-  end;
-
-  procedure _SwapXY(var X, Y: Double);
-  var
-    VTmp: Double;
-  begin
-    VTmp := X;
-    X := Y;
-    Y := VTmp;
-  end;
-
 var
   X, Y: Double;
-  VUtm: TUtmCoord;
-  VGauss: TGaussKrugerCoord;
-  VZoneNumber: Integer;
-  VZoneLetter: Char;
+  VCoord: TDoublePoint;
 begin
   Result := False;
 
   X := str2r(AX);
   Y := str2r(AY);
 
-  _GetZoneParts(VZoneNumber, VZoneLetter);
-
   case FConfig.CoordSysType of
-    cstSK42GK: begin
-      if not (VZoneNumber in [1..60]) or not (AnsiChar(VZoneLetter) in ['N', 'S']) then begin
-        Exit;
-      end;
-
-      _SwapXY(X, Y);
-
-      VGauss.Zone := VZoneNumber;
-      VGauss.IsNorth := VZoneLetter = 'N';
-      VGauss.X := X;
-      VGauss.Y := Y;
-
-      Result := gauss_kruger_to_wgs84(VGauss, ACoord.X, ACoord.Y);
-    end;
-
-    cstUTM: begin
-      if not (VZoneNumber in [0..60]) or not (AnsiChar(VZoneLetter) in ['N', 'S']) then begin
-        Exit;
-      end;
-
-      if VZoneNumber = 0 then begin
-        _SwapXY(X, Y);
-      end;
-
-      VUtm.Zone := VZoneNumber;
-      VUtm.Band := #0;
-      VUtm.IsNorth := VZoneLetter = 'N';
-      VUtm.X := X;
-      VUtm.Y := Y;
-
-      Result := utm_to_wgs84(VUtm, ACoord.X, ACoord.Y);
-    end;
+    cstSK42GK: Result := gauss_kruger_to_wgs84(X, Y, AZone, AIsNorth, VCoord.X, VCoord.Y);
   else
     Assert(False);
   end;
-end;
 
-function TCoordFromStringParser.TryStrToCoord(
-  const AStr: string;
-  out ACoord: TDoublePoint
-): Boolean;
-var
-  VMgrs: TMgrsCoord;
-begin
-  case FConfig.CoordSysType of
-    cstMGRS: begin
-      Result :=
-        str_to_mgrs(AStr, VMgrs) and
-        mgrs_to_wgs84(VMgrs, ACoord.X, ACoord.Y);
-    end;
-  else
-    Result := False;
-    Assert(False);
+  if Result then begin
+    ACoord := VCoord;
   end;
 end;
 

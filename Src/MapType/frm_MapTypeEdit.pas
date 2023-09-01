@@ -170,7 +170,7 @@ uses
   i_StorageState,
   i_TileDownloaderState,
   u_SynEditExt,
-  u_AnsiStr,
+  u_StrFunc,
   u_ResStrings;
 
 {$R *.dfm}

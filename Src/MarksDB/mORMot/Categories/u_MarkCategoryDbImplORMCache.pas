@@ -54,7 +54,7 @@ type
   public
     property Rows: TSQLCategoryRowDynArray read FRows;
   public
-    constructor Create(const AMaxCacheSize: Int64);
+    constructor Create;
   end;
 
   (****************************************************************************)
@@ -81,7 +81,7 @@ type
   public
     property Rows: TSQLCategoryViewRowDynArray read FRows;
   public
-    constructor Create(const AMaxCacheSize: Int64);
+    constructor Create;
   end;
 
   (****************************************************************************)
@@ -106,8 +106,8 @@ uses
 
 procedure TSQLCategoryDbCache.Init;
 begin
-  FCategoryCache := TSQLCategoryCache.Create(CUnlimCacheSize);
-  FCategoryViewCache := TSQLCategoryViewCache.Create(CUnlimCacheSize);
+  FCategoryCache := TSQLCategoryCache.Create;
+  FCategoryViewCache := TSQLCategoryViewCache.Create;
 end;
 
 procedure TSQLCategoryDbCache.Done;
@@ -118,9 +118,9 @@ end;
 
 { TSQLCategoryCache }
 
-constructor TSQLCategoryCache.Create(const AMaxCacheSize: Int64);
+constructor TSQLCategoryCache.Create;
 begin
-  inherited Create(TypeInfo(TSQLCategoryRowDynArray), FRows, djInt64, AMaxCacheSize);
+  inherited Create(TypeInfo(TSQLCategoryRowDynArray), FRows, djInt64, 0);
 end;
 
 procedure TSQLCategoryCache.AddOrUpdate(const ARec: TSQLCategoryRec);
@@ -217,9 +217,9 @@ end;
 
 { TSQLCategoryViewCache }
 
-constructor TSQLCategoryViewCache.Create(const AMaxCacheSize: Int64);
+constructor TSQLCategoryViewCache.Create;
 begin
-  inherited Create(TypeInfo(TSQLCategoryViewRowDynArray), FRows, djInt64, AMaxCacheSize);
+  inherited Create(TypeInfo(TSQLCategoryViewRowDynArray), FRows, djInt64, 0);
 end;
 
 procedure TSQLCategoryViewCache.AddOrUpdate(const ARec: TSQLCategoryRec);

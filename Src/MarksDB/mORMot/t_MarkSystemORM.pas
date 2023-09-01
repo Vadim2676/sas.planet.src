@@ -72,7 +72,6 @@ type
   TTransactionRec = record
     FSessionID: Cardinal;
     FIsInternal: Boolean;
-    FIsReadOnly: Boolean;
   end;
 
 const

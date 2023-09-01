@@ -581,10 +581,6 @@ object frmMain: TfrmMain
           Action = actViewFullScreen
           Images = MenusImageList
         end
-        object tbxMainWindowBordersVisible: TTBXItem
-          Action = actViewBordersVisible
-          Images = MenusImageList
-        end
         object NGoToCur: TTBXItem
           Action = actConfigZoomToCursor
           Images = MenusImageList
@@ -3676,12 +3672,6 @@ object frmMain: TfrmMain
       ImageIndex = 13
       ShortCut = 32848
       OnExecute = actSelectByPolygonExecute
-    end
-    object actViewBordersVisible: TAction
-      Category = 'View'
-      Caption = 'Hide Window Borders'
-      ShortCut = 32890
-      OnExecute = actViewBordersVisibleExecute
     end
     object actSelectByLine: TAction
       Category = 'Operations\Selection'

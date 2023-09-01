@@ -61,7 +61,6 @@ type
 
     FProxyResolver: TCurlProxyResolver;
 
-    FAcceptEncoding: Boolean;
     FTryDetectContentType: Boolean;
     FOnDownloadProgress: TOnDownloadProgress;
 
@@ -102,8 +101,7 @@ implementation
 
 uses
   gnugettext,
-  u_AnsiStr,
-  u_ContentDecoder,
+  u_StrFunc,
   u_NetworkStrFunc,
   u_ListenerByEvent,
   u_Synchronizer;
@@ -148,15 +146,7 @@ begin
 
   FHttpOptions.StoreCookie := AAllowUseCookie;
   FHttpOptions.FollowLocation := AAllowRedirect;
-
-  // libcurl doesn't fix header values Content-Length
-  // and Content-Encoding in HTTP response when it automatically
-  // decompress received content. In other hand, we rely on the
-  // values of these headers, so we will deal with content
-  // decompression ourselves.
-  FAcceptEncoding := AAcceptEncoding;
-  FHttpOptions.AcceptEncoding := False; // disable it for libcurl
-
+  FHttpOptions.AcceptEncoding := AAcceptEncoding;
   FHttpOptions.IgnoreSSLCertificateErrors := True; // ToDo
 
   FillChar(FHttpProxy, SizeOf(FHttpProxy), 0);
@@ -309,7 +299,7 @@ begin
         if VResult then begin
           Result :=
             OnAfterResponse(
-              FAcceptEncoding,
+              False,
               FTryDetectContentType,
               ARequest,
               FHttpResponse.Code,
@@ -414,29 +404,15 @@ begin
 
   VInetConfig := ARequest.InetConfig;
 
-  if not Assigned(FOnDownloadProgress) then begin
-    // The maximum time in milliseconds that you allow the libcurl transfer operation to take.
-
-    // Since this puts a hard limit for how long time a request is allowed to take, it has limited
-    // use in dynamic use cases with varying transfer times. You are then advised to explore
-    // CURLOPT_LOW_SPEED_LIMIT, CURLOPT_LOW_SPEED_TIME or using CURLOPT_PROGRESSFUNCTION to
-    // implement your own timeout logic.
-    // https://curl.se/libcurl/c/CURLOPT_TIMEOUT_MS.html
-
-    FHttpOptions.TimeOutMS := VInetConfig.TimeOut;
-  end else begin
-    FHttpOptions.TimeOutMS := 0;
-  end;
-
-  FHttpOptions.ConnectionTimeOutMS := VInetConfig.TimeOut;
+  FHttpOptions.TimeOutMS := VInetConfig.TimeOut;
+  FHttpOptions.ConnectionTimeOutMS := FHttpOptions.TimeOutMS;
 
   if GetHeaderValueUp(FHttpRequest.Headers, 'USER-AGENT') = '' then begin
     FHttpRequest.Headers := 'User-Agent: ' + VInetConfig.UserAgentString + #13#10 + FHttpRequest.Headers;
   end;
 
-  if FAcceptEncoding then begin
+  if FHttpOptions.AcceptEncoding then begin
     DeleteHeaderValueUp(FHttpRequest.Headers, 'ACCEPT-ENCODING');
-    AddHeaderValue(FHttpRequest.Headers, 'Accept-Encoding', TContentDecoder.GetDecodersStr);
   end;
 
   VProxyConfig := VInetConfig.ProxyConfigStatic;

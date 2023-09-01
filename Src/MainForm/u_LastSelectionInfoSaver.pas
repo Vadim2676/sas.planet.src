@@ -89,6 +89,9 @@ implementation
 uses
   t_GeoTypes,
   IniFiles,
+  {$IFNDEF UNICODE}
+  CompatibilityIniFiles,
+  {$ENDIF}
   i_ThreadConfig,
   i_ConfigDataWriteProvider,
   i_EnumDoublePoint,

@@ -73,6 +73,9 @@ implementation
 uses
   ActiveX,
   SysUtils,
+  {$IF CompilerVersion <= 18.5}
+  Compatibility,
+  {$IFEND}
   i_InterfaceListStatic,
   i_TerrainProviderListElement,
   u_InetFunc,
@@ -94,7 +97,6 @@ resourcestring
   rsAnyAvailableElevationSource = 'Any Available Source';
   rsDisableElevationInfo = 'Disable';
   rsOpenManual = 'Open the Manual (online)';
-  rsUseElevationInterpolation = 'Use Interpolation';
 
 type
   TMenuItemTag = (
@@ -116,7 +118,6 @@ const
   cDisableElevationInfoItemTag = 0;
   cAnyAvailableElevationSourceItemTag = 1;
   cOpenManualItemTag = 2;
-  cUseElevationInterpolationItemTag = 3;
 
 const
   cElevationInfoManualUrl =
@@ -218,13 +219,6 @@ begin
 
         VMenuItem := TTBXItem.Create(FPopup);
         VMenuItem.AutoCheck := True;
-        VMenuItem.Caption := rsUseElevationInterpolation;
-        VMenuItem.Tag := cUseElevationInterpolationItemTag;
-        VMenuItem.OnClick := OnTerrainCustomizeItemClick;
-        VMenuSubItem.Add(VMenuItem);
-
-        VMenuItem := TTBXItem.Create(FPopup);
-        VMenuItem.AutoCheck := True;
         VMenuItem.Caption := rsAnyAvailableElevationSource;
         VMenuItem.Tag := cAnyAvailableElevationSourceItemTag;
         VMenuItem.OnClick := OnTerrainCustomizeItemClick;
@@ -289,15 +283,10 @@ begin
             VMenuItem.Checked :=
               not FTerrainConfig.ShowInStatusBar or
               not FTerrainConfig.ElevationInfoAvailable;
-          end else
-          if VMenuItem.Tag = cUseElevationInterpolationItemTag then begin
-            VMenuItem.Checked := FTerrainConfig.UseInterpolation;
-          end else
-          if VMenuItem.Tag = cAnyAvailableElevationSourceItemTag then begin
+          end else if VMenuItem.Tag = cAnyAvailableElevationSourceItemTag then begin
             VMenuItem.Enabled := FTerrainConfig.ShowInStatusBar;
             VMenuItem.Checked := FTerrainConfig.TrySecondaryElevationProviders;
-          end else
-          if VMenuItem.Tag = cOpenManualItemTag then begin
+          end else if VMenuItem.Tag = cOpenManualItemTag then begin
             // do nothing
           end else begin
             VItem := ITerrainProviderListElement(VMenuItem.Tag);
@@ -403,9 +392,6 @@ begin
       end;
       cOpenManualItemTag: begin
         OpenUrlInBrowser(cElevationInfoManualUrl);
-      end;
-      cUseElevationInterpolationItemTag: begin
-        FTerrainConfig.UseInterpolation := VMenuItem.Checked;
       end;
     end;
   end;

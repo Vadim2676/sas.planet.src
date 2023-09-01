@@ -65,7 +65,6 @@ uses
   i_MarkFactoryConfig,
   i_MarkPicture,
   i_MergePolygonsPresenter,
-  i_MarkOnMapEditProvider,
   frm_MarkCategoryEdit,
   frm_MarkEditPoint,
   frm_MarkEditPath,
@@ -100,8 +99,6 @@ type
     FImportDialog: TOpenDialog;
     FExporterList: IVectorItemTreeExporterListChangeable;
     FImporterList: IVectorItemTreeImporterListChangeable;
-    FMarkOnMapEditProvider: IMarkOnMapEditProvider;
-
     procedure PrepareExportDialog(const AExporterList: IVectorItemTreeExporterListStatic);
     function GetActiveExporter(const AExporterList: IVectorItemTreeExporterListStatic): IVectorItemTreeExporterListItem;
 
@@ -139,9 +136,6 @@ type
       const AIsNewMark: Boolean;
       var AVisible: Boolean
     ): IVectorDataItem;
-    procedure EditMarkPosition(
-      const AMark: IVectorDataItem
-    );
     function EditCategoryModal(
       const ACategory: IMarkCategory;
       const AIsNewCategory: Boolean
@@ -205,7 +199,6 @@ type
       const AMarkPictureList: IMarkPictureList;
       const AAppearanceOfMarkFactory: IAppearanceOfMarkFactory;
       const AMarkSystem: IMarkSystem;
-      const AMarkOnMapEditProvider: IMarkOnMapEditProvider;
       const AGeoCalc: IGeoCalc;
       const AInetConfig: IInetConfig;
       const AInternalDomainUrlHandler: IInternalDomainUrlHandler;
@@ -255,7 +248,6 @@ constructor TMarkDbGUIHelper.Create(
   const AMarkPictureList: IMarkPictureList;
   const AAppearanceOfMarkFactory: IAppearanceOfMarkFactory;
   const AMarkSystem: IMarkSystem;
-  const AMarkOnMapEditProvider: IMarkOnMapEditProvider;
   const AGeoCalc: IGeoCalc;
   const AInetConfig: IInetConfig;
   const AInternalDomainUrlHandler: IInternalDomainUrlHandler;
@@ -275,7 +267,6 @@ constructor TMarkDbGUIHelper.Create(
 begin
   inherited Create;
   FMarkSystem := AMarkSystem;
-  FMarkOnMapEditProvider := AMarkOnMapEditProvider;
   FVectorDataFactory := AVectorDataFactory;
   FVectorDataItemMainInfoFactory := AVectorDataItemMainInfoFactory;
   FVectorGeometryLonLatFactory := AVectorGeometryLonLatFactory;
@@ -544,11 +535,6 @@ begin
   if (Result <> nil) and not IsMarksDBWritable then begin
     Result := nil;
   end;
-end;
-
-procedure TMarkDbGUIHelper.EditMarkPosition(const AMark: IVectorDataItem);
-begin
-  FMarkOnMapEditProvider.ProcessOnMapEdit(AMark);
 end;
 
 function TMarkDbGUIHelper.EditModalImportConfig: IImportConfig;

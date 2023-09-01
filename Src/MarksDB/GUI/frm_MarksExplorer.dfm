@@ -565,30 +565,24 @@ object frmMarksExplorer: TfrmMarksExplorer
     Left = 264
     Top = 256
     object tbitmAddMark: TTBXItem
-      Caption = 'Add'
-      Hint = 'Add'
       ImageIndex = 32
       OnClick = tbitmAddMarkClick
+      Caption = 'Add Placemark'
+      Hint = 'Add'
     end
     object tbitmEditMark: TTBXItem
-      Caption = 'Edit Properties'
-      Hint = 'Edit'
       ImageIndex = 31
       ShortCut = 113
       OnClick = btnEditMarkClick
-    end
-    object tbitmEditMarkPosition: TTBXItem
-      Caption = 'Edit Position'
-      ImageIndex = 31
-      ShortCut = 114
-      OnClick = tbitmEditMarkPositionClick
+      Caption = 'Edit Placemark'
+      Hint = 'Edit'
     end
     object tbitmDeleteMark: TTBXItem
-      Caption = 'Delete'
-      Hint = 'Delete'
       ImageIndex = 30
       ShortCut = 46
       OnClick = btnDelMarkClick
+      Caption = 'Delete Placemark'
+      Hint = 'Delete'
     end
     object tbsprtMarksPopUp2: TTBXSeparatorItem
     end
@@ -616,16 +610,6 @@ object frmMarksExplorer: TfrmMarksExplorer
     end
     object TBXSeparatorItem5: TTBXSeparatorItem
     end
-    object tbxSelectAllVisible: TTBXItem
-      Caption = 'Select All Visible Placemarks'
-      OnClick = tbxSelectAllVisibleClick
-    end
-    object tbxRevertSelection: TTBXItem
-      Caption = 'Revert Selection'
-      OnClick = tbxRevertSelectionClick
-    end
-    object TBXSeparatorItem7: TTBXSeparatorItem
-    end
     object tbitmMarkInfo: TTBXItem
       Caption = 'Placemark Info'
       ImageIndex = 27
@@ -636,8 +620,6 @@ object frmMarksExplorer: TfrmMarksExplorer
       OnClick = btnSaveMarkClick
       Caption = 'Export Placemark'
       Hint = 'Export selected placemark'
-    end
-    object TBXSeparatorItem6: TTBXSeparatorItem
     end
     object tbxtmAddToMergePolygons: TTBXItem
       Caption = 'Add to Merge Polygons'

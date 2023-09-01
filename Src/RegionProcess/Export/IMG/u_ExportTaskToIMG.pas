@@ -116,6 +116,10 @@ uses
   Math,
   Dialogs,
   UITypes,
+  {$IF CompilerVersion < 20}
+  Controls, // for mrYes
+  {$IFEND}
+  ALString,
   libcrc32,
   gnugettext,
   i_TileStorage,
@@ -128,7 +132,6 @@ uses
   i_MapVersionRequest,
   i_BitmapTileSaveLoad,
   i_TileStorageAbilities,
-  u_AnsiStr,
   u_ResStrings,
   u_GeoFunc;
 
@@ -660,7 +663,7 @@ begin
             VData := Nil;
             VUseFileFromCache := False;
 
-            if Assigned(FBitmapPostProcessing) or not SameTextA(VTileInfo.ContentType.GetContentType, 'image/jpg') then begin
+            if Assigned(FBitmapPostProcessing) or not ALSameText(VTileInfo.ContentType.GetContentType, 'image/jpg') then begin
               if Supports(VTileInfo.ContentType, IContentTypeInfoBitmap, VContentTypeInfoBitmap) then begin
                 try
                   VBitmapTile := VContentTypeInfoBitmap.GetLoader.Load(VTileInfo.TileData);

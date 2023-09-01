@@ -432,8 +432,13 @@ object frLonLat: TfrLonLat
         end
         item
           Column = 1
-          Control = edtZone
+          Control = cbbZone
           Row = 0
+        end
+        item
+          Column = 1
+          Control = chkNorth
+          Row = 1
         end>
       RowCollection = <
         item
@@ -454,17 +459,27 @@ object frLonLat: TfrLonLat
         Alignment = taRightJustify
         Caption = 'Zone:'
       end
-      object edtZone: TEdit
+      object cbbZone: TComboBox
+        AlignWithMargins = True
         Left = 63
         Top = 3
-        Width = 90
-        Height = 18
-        Align = alCustom
-        Anchors = [akLeft, akTop, akRight]
-        BorderStyle = bsNone
-        Ctl3D = False
-        ParentCtl3D = False
+        Width = 89
+        Height = 21
+        Align = alTop
         TabOrder = 0
+      end
+      object chkNorth: TCheckBox
+        AlignWithMargins = True
+        Left = 63
+        Top = 26
+        Width = 89
+        Height = 20
+        Align = alTop
+        Caption = 'North'
+        TabOrder = 1
+        ExplicitLeft = 100
+        ExplicitTop = 48
+        ExplicitWidth = 145
       end
     end
   end
@@ -511,8 +526,15 @@ object frLonLat: TfrLonLat
       Align = alTop
       Style = csDropDownList
       Anchors = []
-      TabOrder = 1
+      ItemHeight = 13
+      ItemIndex = 0
+      TabOrder = 0
+      Text = 'Geographic Coordinates'
       OnSelect = cbbCoordTypeSelect
+      Items.Strings = (
+        'Geographic Coordinates'
+        'Pixel'
+        'Tile')
     end
     object pnlButtons: TPanel
       Left = 361
@@ -562,32 +584,6 @@ object frLonLat: TfrLonLat
         TabOrder = 2
         OnClick = btnCoordFormatClick
       end
-    end
-  end
-  object pnlCustom: TPanel
-    AlignWithMargins = True
-    Left = 0
-    Top = 168
-    Width = 451
-    Height = 33
-    Margins.Left = 0
-    Margins.Top = 0
-    Margins.Right = 0
-    Margins.Bottom = 0
-    Align = alTop
-    BevelOuter = bvNone
-    TabOrder = 4
-    Visible = False
-    object edtCustom: TEdit
-      Left = 3
-      Top = 6
-      Width = 445
-      Height = 18
-      Align = alCustom
-      Alignment = taCenter
-      Anchors = [akLeft, akTop, akRight]
-      BorderStyle = bsNone
-      TabOrder = 0
     end
   end
   object tbxpmnCoordFormat: TTBXPopupMenu

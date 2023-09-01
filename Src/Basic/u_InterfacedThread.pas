@@ -26,6 +26,9 @@ interface
 uses
   Classes,
   SysUtils,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   i_Notifier,
   i_Listener,
   i_ThreadConfig,

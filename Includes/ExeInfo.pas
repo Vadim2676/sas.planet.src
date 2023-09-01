@@ -28,23 +28,16 @@ end;
 
 function GetBuildVersionInfo(out Major, Minor, Release, Build: Word): Boolean;
 var
-  FileName: string;
   VerInfo: Pointer;
   VerValue: PVSFixedFileInfo;
   VerInfoSize, VerValueSize, Dummy: DWORD;
 begin
   Result := False;
-
-  // GetFileVersionInfo modifies the filename parameter data while parsing.
-  // Copy the string const into a local variable to create a writeable copy.
-  FileName := ParamStr(0);
-  UniqueString(FileName);
-
-  VerInfoSize := GetFileVersionInfoSize(PChar(FileName), Dummy);
+  VerInfoSize := GetFileVersionInfoSize(PChar(ParamStr(0)), Dummy);
   if VerInfoSize > 0 then begin
     GetMem(VerInfo, VerInfoSize);
     try
-      if GetFileVersionInfo(PChar(FileName), 0, VerInfoSize, VerInfo) then begin
+      if GetFileVersionInfo(PChar(ParamStr(0)), 0, VerInfoSize, VerInfo) then begin
         VerQueryValue(VerInfo, '\', Pointer(VerValue), VerValueSize);
         with VerValue^ do begin
           Major   := dwFileVersionMS shr 16;

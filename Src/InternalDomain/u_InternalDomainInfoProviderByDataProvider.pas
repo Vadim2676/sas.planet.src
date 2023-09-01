@@ -66,6 +66,9 @@ uses
   SysUtils,
   ActiveX,
   UrlMon,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  {$ENDIF}
   i_ContentTypeInfo;
 
 const

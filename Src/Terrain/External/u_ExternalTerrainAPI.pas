@@ -23,87 +23,80 @@ unit u_ExternalTerrainAPI;
 
 interface
 
-{.$DEFINE DUMP_TIFF_TAGS}
-
 uses
-  Windows,
-  Math;
+  Windows;
+
+function FindElevationInPlain(
+  const AFile: THandle;
+  const AStripIndex, AColumnIndex: LongInt;
+  const ALinesCount, ASamplesCount: LongInt;
+  out AElevationData: SmallInt
+): Boolean;
+
+procedure SwapInWord(const AWordPtr: PWord);
+procedure SwapInDWord(const ADWordPtr: PDWord);
+
+procedure CalcOffsetsInBounds(
+  const ASasLon, ASasLat: Double;
+  const ABounds: TRect;
+  const ALinesCount, ASamplesCount: LongInt;
+  out AStripIndex, AColumnIndex: LongInt
+);
+
+//-----------------------------------------------------------
 
 type
-  TElevationValueType = (evtSmallInt, evtLongInt, evtSingle);
-  
-  TElevationValue = record
-    case TypeId: TElevationValueType of
-      evtSmallInt : (ValueSmall: SmallInt);
-      evtLongInt  : (ValueLong: LongInt);
-      evtSingle   : (ValueSingle: Single);
+  // Native NT API (for simplicity and performance)
+  NTSTATUS = LongInt;
+  PVOID = Pointer;
+
+  LARGE_INTEGER = Int64;
+  PLARGE_INTEGER = ^LARGE_INTEGER;
+
+  IO_STATUS_BLOCK=record
+    Status: DWORD;
+    Information: ULONG;
   end;
+  PIO_STATUS_BLOCK=^IO_STATUS_BLOCK;
 
-  TStripOffsetsType = (sotShort = 2, sotLong = 4); // do not change!
+  PIO_APC_ROUTINE = procedure(
+    ApcContext: PVOID;
+    IoStatusBlock: PIO_STATUS_BLOCK;
+    Reserved: ULONG); stdcall;
 
-  TTerrainFile = class
-  private
-    FFileName: string;
-    FFileHandle: THandle;
+  function NtReadFile(
+    FileHandle: THandle; { IN }
+    EventHandle: THandle; { IN OPTIONAL }
+    UserApcRoutine: PIO_APC_ROUTINE; { IN OPTIONAL }
+    UserApcContext: PVOID; { IN OPTIONAL}
+    IoStatusBlock: PIO_STATUS_BLOCK; { OUT }
+    Buffer: PVOID; { OUT }
+    Length: ULONG; { IN }
+    ByteOffset: PLARGE_INTEGER; { IN OPTIONAL }
+    FileLockKey: PULONG { IN OPTIONAL }
+  ): NTSTATUS; stdcall; external 'ntdll.dll';
 
-    FRowsCount: Integer;
-    FColsCount: Integer;
+const
+  STATUS_SUCCESS = $00000000;
+  //STATUS_BUFFER_TOO_SMALL = $C0000023;
 
-    FByteOrder: Integer;
-    FVoidValue: Integer;
+// read any buffer at any pos
+function NtReadFromFile(
+  const AFile: THandle;
+  const ABuf: Pointer;
+  const ALen: LongWord;
+  const AOffset: LARGE_INTEGER
+): Boolean;
 
-    FIsFileOk: Boolean;
-    FIsTiff: Boolean;
+//-----------------------------------------------------------
 
-    FImageWidth: Integer;
-    FImageLength: Integer;
-
-    FSampleFormat: Integer;
-    FSampleSize: Integer;
-
-    FStripOffsets: Int64;
-    FStripOffsetsCount: Cardinal;
-    FStripOffsetsType: TStripOffsetsType;
-    FStripOffsetsBuffer: Pointer;
-
-    FElevationData: TElevationValue;
-
-    function FindElevationInPlain(
-      const ARow, ACol: Integer
-    ): Boolean;
-
-    function FindElevationInTiff(
-      const ARow, ACol: Integer
-    ): Boolean;
-
-    procedure InternalClose;
-    function ReadTiffMetadata: Boolean;
-  public
-    function Open(
-      const AFileName: string;
-      const ARowsCount: Integer;
-      const AColsCount: Integer
-    ): Boolean;
-
-    function FindElevation(
-      ARow, ACol: Integer;
-      out AElevation: Single
-    ): Boolean; inline;
-  public
-    constructor Create(
-      const AByteOrder: Integer;
-      const AVoidValue: Integer
-    );
-    destructor Destroy; override;
+type
+  TTiffHeader = packed record
+    ByteOrder: Word;  // 'II' (4949.H) or 'MM' (4D4D.H)
+    type_: Word;      // 42
+    IFDOffset: DWORD; // offset of first IFD
   end;
-
-implementation
-
-uses
-  SysUtils,
-  NTFiles;
-
-//-----------------------------------------------------------------------------
+  PTiffHeader = ^TTiffHeader;
 
 const
   c_TIFF_II = $4949;
@@ -118,13 +111,6 @@ const
   c_42_MM = $2A00; // 42
 
 type
-  TTiffHeader = packed record
-    ByteOrder: Word;  // 'II' (4949.H) or 'MM' (4D4D.H)
-    type_: Word;      // 42
-    IFDOffset: DWORD; // offset of first IFD
-  end;
-  PTiffHeader = ^TTiffHeader;
-
   // 4.6.2 IFD Structure
   // The IFD used in this standard consists of:
   // a 2-byte count (number of fields),
@@ -132,7 +118,7 @@ type
   // and 4-byte offset to the next IFD, in conformance with TIFF Rev. 6.0.
   TIFD_12 = packed record
     tag: Word;     // Bytes 0-1 Tag
-    type_: Word;   // Bytes 2-3 Type
+    type_: Word;      // Bytes 2-3 Type
     count: DWORD;  // Bytes 4-7 Count
     offset: DWORD; // Bytes 8-11 Value Offset
   end;
@@ -145,31 +131,98 @@ type
   end;
   PIFD_NN = ^TIFD_NN;
 
-//-----------------------------------------------------------------------------
+function FindElevationInTiff(
+  const AFile: THandle;
+  const AStripIndex, AColumnIndex: LongInt;
+  const ALinesCount, ASamplesCount: LongInt;
+  out AElevationData: SmallInt
+): Boolean;
 
-procedure SwapInWord(const AWordPtr: PWord); inline;
-var
-  w: Word;
+
+implementation
+
+{.$DEFINE DUMP_TIFF_TAGS}
+
+{$IFDEF DUMP_TIFF_TAGS}
+uses
+  SysUtils;
+{$ENDIF}
+
+procedure SwapInWord(const AWordPtr: PWord);
+var w: Word;
 begin
-  w := ((AWordPtr^ and $00ff) shl 8) or
+  w := ((AWordPtr^ and $00ff) shl 8)
+       OR
        ((AWordPtr^ and $ff00) shr 8);
   AWordPtr^ := w;
 end;
 
-procedure SwapInDWord(const ADWordPtr: PDWord); inline;
-var
-  d: DWord;
+procedure SwapInDWord(const ADWordPtr: PDWord);
+var d: DWord;
 begin
-  d := ((ADWordPtr^ and $000000ff) shl 24) or
-       ((ADWordPtr^ and $0000ff00) shl 8) or
-       ((ADWordPtr^ and $00ff0000) shr 8) or
+  d := ((ADWordPtr^ and $000000ff) shl 24)
+       OR
+       ((ADWordPtr^ and $0000ff00) shl 8)
+       OR
+       ((ADWordPtr^ and $00ff0000) shr 8)
+       OR
        ((ADWordPtr^ and $ff000000) shr 24);
   ADWordPtr^ := d;
 end;
 
-function GetTiffDWORD(const AByteOrder: Word; const ASource: DWORD): DWORD; inline;
+function NtReadFromFile(
+  const AFile: THandle;
+  const ABuf: Pointer;
+  const ALen: LongWord;
+  const AOffset: LARGE_INTEGER
+): Boolean;
+var
+  VStatus: NTSTATUS;
+  VRead_IOSB: IO_STATUS_BLOCK;
 begin
-  if AByteOrder = c_TIFF_MM then begin
+  VStatus := NtReadFile(AFile, 0, nil, nil, @VRead_IOSB, ABuf, ALen, @AOffset, nil);
+  // check status and how many bytes actually read
+  Result := (STATUS_SUCCESS=VStatus) and (ALen = VRead_IOSB.Information);
+end;
+
+function FindElevationInPlain(
+  const AFile: THandle;
+  const AStripIndex, AColumnIndex: LongInt;
+  const ALinesCount, ASamplesCount: LongInt;
+  out AElevationData: SmallInt
+): Boolean;
+var
+  VOffset: LARGE_INTEGER;
+begin
+  // The data are stored in row major order (all the data for row 1, followed by all the data for row 2, etc.).
+  VOffset := AStripIndex;
+  VOffset := VOffset * ASamplesCount;
+  VOffset := VOffset + AColumnIndex;
+  VOffset := VOffset * SizeOf(AElevationData);
+  Result := NtReadFromFile(AFile, @AElevationData, SizeOf(AElevationData), VOffset);
+end;
+
+procedure CalcOffsetsInBounds(
+  const ASasLon, ASasLat: Double;
+  const ABounds: TRect;
+  const ALinesCount, ASamplesCount: LongInt;
+  out AStripIndex, AColumnIndex: LongInt
+);
+begin
+  AStripIndex  := Round((1-(ASasLat-ABounds.Bottom)/(ABounds.Top-ABounds.Bottom))*(ALinesCount-1));
+  AColumnIndex := Round((ASasLon-ABounds.Left)/(ABounds.Right-ABounds.Left)*(ASamplesCount-1));
+end;
+
+function CheckTiffHeader(const ATiffHeader: TTiffHeader): Boolean;
+begin
+  Result := ((ATiffHeader.ByteOrder=c_TIFF_II) and (ATiffHeader.type_=c_42_II))
+            OR
+            ((ATiffHeader.ByteOrder=c_TIFF_MM) and (ATiffHeader.type_=c_42_MM));
+end;
+
+function GetTiffDWORD(const AByteOrder: Word; const ASource: DWORD): DWORD;
+begin
+  if (AByteOrder=c_TIFF_MM) then begin
     // revert
     Result := ASource;
     SwapInDWord(@Result);
@@ -179,9 +232,9 @@ begin
   end;
 end;
 
-function GetTiffWORD(const AByteOrder: Word; const ASource: WORD): WORD; inline;
+function GetTiffWORD(const AByteOrder: Word; const ASource: WORD): WORD;
 begin
-  if AByteOrder = c_TIFF_MM then begin
+  if (AByteOrder=c_TIFF_MM) then begin
     // revert
     Result := ASource;
     SwapInWord(@Result);
@@ -191,259 +244,25 @@ begin
   end;
 end;
 
-function ReadElevationValue(
+function FindElevationInTiff(
   const AFile: THandle;
-  const AOffset: Int64;
-  var AValue: TElevationValue
-): Boolean; inline;
-begin
-  Result := False;
-  case AValue.TypeId of
-    evtSmallInt: Result := NtReadFromFile(AFile, @AValue.ValueSmall, SizeOf(AValue.ValueSmall), AOffset);
-    evtLongInt: Result := NtReadFromFile(AFile, @AValue.ValueLong, SizeOf(AValue.ValueLong), AOffset);
-    evtSingle: Result := NtReadFromFile(AFile, @AValue.ValueSingle, SizeOf(AValue.ValueSingle), AOffset);
-  else
-    Assert(False);
-  end;
-end;
-
-{ TTerrainFile }
-
-constructor TTerrainFile.Create(
-  const AByteOrder: Integer;
-  const AVoidValue: Integer
-);
-begin
-  inherited Create;
-
-  FByteOrder := AByteOrder;
-  FVoidValue := AVoidValue;
-
-  FFileHandle := 0;
-  FFileName := '';
-  FIsFileOk := False;
-  FIsTiff := False;
-
-  FStripOffsetsBuffer := nil;
-end;
-
-destructor TTerrainFile.Destroy;
-begin
-  InternalClose;
-  inherited Destroy;
-end;
-
-function TTerrainFile.Open(
-  const AFileName: string;
-  const ARowsCount: Integer;
-  const AColsCount: Integer
+  const AStripIndex, AColumnIndex: LongInt;
+  const ALinesCount, ASamplesCount: LongInt;
+  out AElevationData: SmallInt
 ): Boolean;
-begin
-  // don't try reopen same file on failue
-  if (not FIsFileOk) and (FFileName = AFileName) then begin
-    Result := False;
-    Exit;
-  end;
-
-  // if file not opened or opened another file - open this
-  if (FFileHandle = 0) or (FFileName <> AFileName) then begin
-    InternalClose;
-
-    FFileName := AFileName;
-    FRowsCount := ARowsCount;
-    FColsCount := AColsCount;
-
-    // open file
-    FFileHandle := CreateFile(PChar(FFileName), GENERIC_READ, FILE_SHARE_READ,
-      nil, OPEN_EXISTING, 0, 0);
-
-    FIsFileOk := FFileHandle <> INVALID_HANDLE_VALUE;
-    if not FIsFileOk then begin
-      FFileHandle := 0;
-    end;
-
-    if FIsFileOk then begin
-      FIsTiff := SameText(ExtractFileExt(FFileName), '.tif');
-      if FIsTiff then begin
-        FIsFileOk := ReadTiffMetadata;
-      end;
-    end;
-  end;
-
-  Result := FIsFileOk;
-end;
-
-procedure TTerrainFile.InternalClose;
-begin
-  if FStripOffsetsBuffer <> nil then begin
-    HeapFree(GetProcessHeap, 0, FStripOffsetsBuffer);
-    FStripOffsetsBuffer := nil;
-  end;
-
-  if FFileHandle <> 0 then begin
-    CloseHandle(FFileHandle);
-    FFileHandle := 0;
-  end;
-
-  FFileName := '';
-  FIsFileOk := False;
-end;
-
-function IsVoid(
-  const AElevationData: TElevationValue;
-  const AVoidValue: Integer
-): Boolean; inline;
-begin
-  if AVoidValue = 0 then begin
-    Result := False;
-    Exit;
-  end;
-
-  case AElevationData.TypeId of
-    evtSmallInt: Result := AVoidValue = AElevationData.ValueSmall;
-    evtLongInt: Result := AVoidValue = AElevationData.ValueLong;
-    evtSingle: Result := AVoidValue = Round(AElevationData.ValueSingle);
-  else
-    Result := True;
-    Assert(False);
-  end;
-end;
-
-function TTerrainFile.FindElevation(
-  ARow, ACol: Integer;
-  out AElevation: Single
-): Boolean;
-begin
-  Assert(ARow >= 0);
-  Assert(ARow < FRowsCount);
-
-  Assert(ACol >= 0);
-  Assert(ACol < FColsCount);
-
-  //ARow := Max(0, ARow);
-  //ARow := Min(ARow, FRowsCount-1);
-
-  //ACol := Max(0, ACol);
-  //ACol := Min(ACol, FColsCount-1);
-
-  // rows stored from top to bottom
-  ARow := (FRowsCount - 1) - ARow;
-
-  if FIsTiff then begin
-    Result := FindElevationInTiff(ARow, ACol);
-  end else begin
-    Result := FindElevationInPlain(ARow, ACol);
-  end;
-
-  if not Result then begin
-    // fatal error
-    FIsFileOk := False;
-    Exit;
-  end;
-
-  // check byte inversion
-  if FByteOrder <> 0 then begin
-    case FElevationData.TypeId of
-      evtSmallInt: SwapInWord(@FElevationData.ValueSmall);
-      evtLongInt: SwapInDWord(@FElevationData.ValueLong);
-    end;
-  end;
-
-  // check voids
-  Result := not IsVoid(FElevationData, FVoidValue);
-  if not Result then begin
-    Exit;
-  end;
-
-  // ok
-  case FElevationData.TypeId of
-    evtSmallInt: AElevation := FElevationData.ValueSmall;
-    evtLongInt: AElevation := FElevationData.ValueLong;
-    evtSingle: AElevation := FElevationData.ValueSingle;
-  else
-    Result := False;
-    Assert(False);
-  end;
-end;
-
-function TTerrainFile.FindElevationInPlain(const ARow, ACol: Integer): Boolean;
-var
-  VOffset: Int64;
-begin
-  FElevationData.TypeId := evtSmallInt;
-
-  // The data are stored in row major order
-  // (all the data for row 1, followed by all the data for row 2, etc.).
-
-  VOffset := ARow * FColsCount + ACol;
-  VOffset := VOffset * SizeOf(FElevationData.ValueSmall);
-
-  Result := NtReadFromFile(
-    FFileHandle,
-    @FElevationData.ValueSmall,
-    SizeOf(FElevationData.ValueSmall),
-    VOffset
-  );
-end;
-
-function TTerrainFile.FindElevationInTiff(const ARow, ACol: Integer): Boolean;
-var
-  VOffset: Int64;
-  VOffsetsSize: Cardinal;
-begin
-  Result := False;
-
-  if FStripOffsetsCount = 1 then begin
-    VOffset := (ARow * FColsCount + ACol) * FSampleSize;
-    Result := ReadElevationValue(FFileHandle, FStripOffsets + VOffset, FElevationData);
-  end else
-  if FStripOffsetsCount = Cardinal(FRowsCount) then begin
-
-    // read StripOffsets into buffer
-    if FStripOffsetsBuffer = nil then begin
-      VOffsetsSize := FStripOffsetsCount * Cardinal(FStripOffsetsType);
-
-      FStripOffsetsBuffer := HeapAlloc(GetProcessHeap, 0, VOffsetsSize);
-      if FStripOffsetsBuffer = nil then begin
-        Exit;
-      end;
-
-      Result := NtReadFromFile(FFileHandle, FStripOffsetsBuffer, VOffsetsSize, FStripOffsets);
-      if not Result then begin
-        Exit;
-      end;
-    end;
-
-    if FStripOffsetsType = sotLong then begin
-      // as LONG
-      VOffset := PLongWord(INT_PTR(FStripOffsetsBuffer)+ARow*SizeOf(DWORD))^;
-      VOffset := VOffset + ACol * FSampleSize;
-      Result := ReadElevationValue(FFileHandle, VOffset, FElevationData);
-    end else begin
-      // as SHORT
-      VOffset := PWord(INT_PTR(FStripOffsetsBuffer)+ARow*SizeOf(WORD))^;
-      VOffset := VOffset + ACol * FSampleSize;
-      Result := ReadElevationValue(FFileHandle, VOffset, FElevationData);
-    end;
-  end;
-end;
-
-function CheckTiffHeader(const ATiffHeader: TTiffHeader): Boolean;
-begin
-  Result := ((ATiffHeader.ByteOrder = c_TIFF_II) and (ATiffHeader.type_ = c_42_II)) or
-            ((ATiffHeader.ByteOrder = c_TIFF_MM) and (ATiffHeader.type_ = c_42_MM));
-end;
-
-function TTerrainFile.ReadTiffMetadata: Boolean;
 var
   I: Integer;
   VTiffHeader: TTiffHeader;
-  VOffset: Int64;
+  VStripsPerImage: DWORD;
+  VOffset: LARGE_INTEGER;
   VNumberOfIFDs: Word;
-  VCurrentTag: TIFD_12;
+  VCurrentTag, VStripOffsetsTag: TIFD_12;
+  VImageWidth, VImageLength: DWORD;
+  VOffsetsSize: LongWord;
+  VOffsetsBuffer: Pointer;
 begin
   // read header
-  Result := NtReadFromFile(FFileHandle, @VTiffHeader, SizeOf(VTiffHeader), 0);
+  Result := NtReadFromFile(AFile, @VTiffHeader, SizeOf(VTiffHeader), 0);
   if not Result then
     Exit;
 
@@ -455,58 +274,38 @@ begin
   VOffset := GetTiffDWORD(VTiffHeader.ByteOrder, VTiffHeader.IFDOffset);
 
   // get number of IFDs
-  Result := NtReadFromFile(FFileHandle, @VNumberOfIFDs, SizeOf(VNumberOfIFDs), VOffset);
+  Result := NtReadFromFile(AFile, @VNumberOfIFDs, SizeOf(VNumberOfIFDs), VOffset);
   if not Result then
     Exit;
 
   VNumberOfIFDs := GetTiffWORD(VTiffHeader.ByteOrder, VNumberOfIFDs);
   VOffset := VOffset + SizeOf(VNumberOfIFDs);
 
-  FImageWidth := 0;
-  FImageLength := 0;
-
-  FSampleSize := 2; // 16 bit
-  FSampleFormat := 2; // signed
-
-  FStripOffsetsCount := 0;
+  VImageWidth := 0;
+  VImageLength := 0;
+  VStripsPerImage := 0;
+  FillChar(VStripOffsetsTag, SizeOf(VStripOffsetsTag), 0);
 
   if VNumberOfIFDs > 0 then begin
     for I := 0 to VNumberOfIFDs - 1 do begin
       // get IFD
-      Result := NtReadFromFile(FFileHandle, @VCurrentTag, SizeOf(VCurrentTag), VOffset);
+      Result := NtReadFromFile(AFile, @VCurrentTag, SizeOf(VCurrentTag), VOffset);
       if not Result then
         Exit;
 
       case VCurrentTag.tag of
         $100: begin
           // ImageWidth (SHORT or LONG)
-          FImageWidth := VCurrentTag.offset;
+          VImageWidth := VCurrentTag.offset;
         end;
         $101: begin
           // ImageLength (SHORT or LONG)
-          FImageLength := VCurrentTag.offset;
-        end;
-        $102: begin
-          // BitsPerSample
-          FSampleSize := VCurrentTag.offset div 8;
+          VImageLength := VCurrentTag.offset;
         end;
         $111: begin
           // StripOffsets
-          FStripOffsets := VCurrentTag.offset;
-          FStripOffsetsCount := VCurrentTag.count;
-          if VCurrentTag.type_ = 2 then begin
-            FStripOffsetsType := sotShort;
-          end else begin
-            FStripOffsetsType := sotLong;
-          end;
-        end;
-        $153: begin
-          // Specifies how to interpret each data sample in a pixel.
-          // 1 = unsigned integer data
-          // 2 = two's complement signed integer data
-          // 3 = IEEE floating point data
-          // 4 = undefined data format
-          FSampleFormat := VCurrentTag.offset;
+          VStripOffsetsTag := VCurrentTag;
+          VStripsPerImage := VStripOffsetsTag.count;
         end;
       end;
 
@@ -528,41 +327,49 @@ begin
 
   Result := False;
 
-  if FStripOffsetsCount = 0 then begin
-    // ToDo: add tiled tiff support
-    Exit;
-  end;
+  if (ASamplesCount = Integer(VImageWidth)) and (ALinesCount = Integer(VImageLength)) then begin
+    if VStripsPerImage = 1 then begin
+      VOffset := VStripOffsetsTag.offset;
+      VOffset := VOffset + AStripIndex * ASamplesCount;
+      VOffset := VOffset + AColumnIndex;
+      VOffset := VOffset * SizeOf(AElevationData);
+      Result := NtReadFromFile(AFile, @AElevationData, SizeOf(AElevationData), VOffset);
+    end else if VStripsPerImage = Cardinal(ALinesCount) then begin
+      // copy offsets for every strip
+      // 3 = SHORT 16-bit (2-byte) unsigned integer
+      // 4 = LONG 32-bit (4-byte) unsigned integer
+      // may be as SHORT ...
+      VOffsetsSize := VStripOffsetsTag.count*2;
+      if (VStripOffsetsTag.type_=4) then begin
+        // ... or as LONG
+        VOffsetsSize := VOffsetsSize * 2;
+      end;
 
-  if (FColsCount <> FImageWidth) or (FRowsCount <> FImageLength) then begin
-    Exit;
-  end;
-    
-  case FSampleFormat of
-    2: begin
-      if FSampleSize = 2 then begin
-        FElevationData.TypeId := evtSmallInt;
-      end else
-      if FSampleSize = 4 then begin
-        FElevationData.TypeId := evtLongInt;
-      end else begin
-        Assert(False, 'TIFF: Invalid SampleSize value: ' + IntToStr(FSampleSize));
-        Exit;
+      VOffsetsBuffer := HeapAlloc(GetProcessHeap, 0, VOffsetsSize);
+      if (VOffsetsBuffer<>nil) then
+      try
+        VOffset := VStripOffsetsTag.offset;
+        Result := NtReadFromFile(AFile, VOffsetsBuffer, VOffsetsSize, VOffset);
+        if (not Result) then
+          Exit;
+
+        // done
+        if (VStripOffsetsTag.type_=4) then begin
+          // as LONG
+          VOffset := PLongWord(INT_PTR(VOffsetsBuffer)+AStripIndex*SizeOf(DWORD))^;
+          VOffset := VOffset + AColumnIndex*SizeOf(AElevationData);
+          Result := NtReadFromFile(AFile, @AElevationData, SizeOf(AElevationData), VOffset);
+        end else begin
+          // as SHORT
+          VOffset := PWord(INT_PTR(VOffsetsBuffer)+AStripIndex*SizeOf(WORD))^;
+          VOffset := VOffset + AColumnIndex*SizeOf(AElevationData);
+          Result := NtReadFromFile(AFile, @AElevationData, SizeOf(AElevationData), VOffset);
+        end;
+      finally
+        HeapFree(GetProcessHeap, 0, VOffsetsBuffer);
       end;
     end;
-    3: begin
-      if FSampleSize = 4 then begin
-        FElevationData.TypeId := evtSingle;
-      end else begin
-        Assert(False, 'TIFF: Invalid SampleSize value: ' + IntToStr(FSampleSize));
-        Exit;
-      end;
-    end
-  else
-    Assert(False, 'TIFF: Unexpected SampleFormat value: ' + IntToStr(FSampleFormat));
-    Exit;
   end;
-
-  Result := True;
 end;
 
 end.

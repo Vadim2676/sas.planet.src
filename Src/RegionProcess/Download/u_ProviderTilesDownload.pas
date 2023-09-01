@@ -115,6 +115,10 @@ uses
   SysUtils,
   Math,
   IniFiles,
+  {$IFNDEF UNICODE}
+  Compatibility,
+  CompatibilityIniFiles,
+  {$ENDIF}
   gnugettext,
   i_MapType,
   i_RegionProcessParamsFrame,

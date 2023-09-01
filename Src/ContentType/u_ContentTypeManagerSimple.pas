@@ -133,6 +133,7 @@ implementation
 
 uses
   SysUtils,
+  ALString,
   ALStringList,
   i_VectorDataLoader,
   u_ContentTypeInfo,
@@ -141,7 +142,7 @@ uses
   u_WikimapiaKmlSimpleParser,
   u_KmzInfoSimpleParser,
   u_XmlInfoSimpleParser,
-  u_AnsiStr,
+  u_StrFunc,
   u_ContentConverterBase,
   u_ContentConverterBitmap;
 
@@ -319,10 +320,10 @@ end;
 
 procedure TContentTypeManagerSimple.ConverterMatrixUpdateSynonyms;
 var
-  VSourceEnumerator: TStringsEnumeratorA;
+  VSourceEnumerator: TALStringsEnumerator;
   VSoruceName: AnsiString;
   VSourceContent: IContentTypeInfoBasic;
-  VTargetEnumerator: TStringsEnumeratorA;
+  VTargetEnumerator: TALStringsEnumerator;
   VTargetName: AnsiString;
   VTargetContent: IContentTypeInfoBasic;
   VConverter: IContentConverter;
@@ -357,9 +358,9 @@ function TContentTypeManagerSimple.FindConverterWithSynonyms(
   const ASourceType, ATargetType: AnsiString
 ): IContentConverter;
 var
-  VSourceEnumerator: TStringsEnumeratorA;
+  VSourceEnumerator: TALStringsEnumerator;
   VSoruceName: AnsiString;
-  VTargetEnumerator: TStringsEnumeratorA;
+  VTargetEnumerator: TALStringsEnumerator;
   VTargetName: AnsiString;
   VConverter: IContentConverter;
 begin
@@ -404,10 +405,10 @@ end;
 
 procedure TContentTypeManagerSimple.ConverterMatrixUpdateFixedWithSynonyms;
 var
-  VSourceEnumerator: TStringsEnumeratorA;
+  VSourceEnumerator: TALStringsEnumerator;
   VSoruceName: AnsiString;
   VSourceContent: IContentTypeInfoBasic;
-  VTargetEnumerator: TStringsEnumeratorA;
+  VTargetEnumerator: TALStringsEnumerator;
   VTargetName: AnsiString;
   VTargetContent: IContentTypeInfoBasic;
   VConverter: IContentConverter;
@@ -443,7 +444,7 @@ procedure TContentTypeManagerSimple.AddFromContentTypeManagerBitmapInternal(
 );
 var
   VList: TContentTypeListByKey;
-  VEnumerator: TStringsEnumeratorA;
+  VEnumerator: TALStringsEnumerator;
 begin
   VList := AContentTypeManagerBitmapInternal.GetBitmapExtList;
   VEnumerator := VList.GetEnumerator;
@@ -468,10 +469,10 @@ end;
 
 procedure TContentTypeManagerSimple.ConverterMatrixUpdateBitmaps;
 var
-  VSourceEnumerator: TStringsEnumeratorA;
+  VSourceEnumerator: TALStringsEnumerator;
   VSoruceName: AnsiString;
   VSourceContent: IContentTypeInfoBitmap;
-  VTargetEnumerator: TStringsEnumeratorA;
+  VTargetEnumerator: TALStringsEnumerator;
   VTargetName: AnsiString;
   VTargetContent: IContentTypeInfoBitmap;
   VConverter: IContentConverter;
@@ -551,13 +552,16 @@ function TContentTypeManagerBitmap.GetBitmapLoaderByFileName(
 ): IBitmapTileLoader;
 var
   VExt: string;
+  VExtAscii: AnsiString;
   VContentType: IContentTypeInfoBasic;
   VContentTypeBitmap: IContentTypeInfoBitmap;
 begin
   Result := nil;
-  VExt := LowerCase(ExtractFileExt(AFileName));
+  VExt := ExtractFileExt(AFileName);
   if IsAscii(VExt) then begin
-    VContentType := FBitmapExtList.Get(AnsiString(VExt));
+    VExtAscii := StringToAsciiSafe(VExt);
+    VExtAscii := AlLowerCase(VExtAscii);
+    VContentType := FBitmapExtList.Get(VExtAscii);
     if Assigned(VContentType) then begin
       if Supports(VContentType, IContentTypeInfoBitmap, VContentTypeBitmap) then begin
         Result := VContentTypeBitmap.GetLoader;

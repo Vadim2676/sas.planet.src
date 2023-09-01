@@ -27,9 +27,7 @@ const
   CGoogleDatumEPSG = 6055;
   CYandexDatumEPSG = 6326;
 
-  CGoogleProjectionEPSG = 3857;
-  CGoogleProjectionEPSG_Old = 3785; // Deprecated EPSG code for Spherical Mercator - wrong definition
-
+  CGoogleProjectionEPSG = 3785;
   CYandexProjectionEPSG = 3395;
   CGELonLatProjectionEPSG = 4326;
 
